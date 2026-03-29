@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [[ \"$FILE\" == *.ts || \"$FILE\" == *.tsx ]]; then cd /Users/thomasou/Github/D4NCE-main && pnpm tsc --noEmit 2>&1 | tail -20; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
