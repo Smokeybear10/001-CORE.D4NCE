@@ -92,9 +92,16 @@ export default function DJSystem() {
         enabled: true,
       }
 
+      // If this is the first track loaded, snap crossfader to this deck
+      const otherDeck = deck === "A" ? "B" : "A"
+      const hasOtherTrack = musicObject.tracks[otherDeck] !== null
+      const xfade = !hasOtherTrack ? (deck === "A" ? 0 : 1) : undefined
+
       updateMusicObject({
         tracks: { ...musicObject.tracks, [deck]: trackSettings },
+        ...(xfade !== undefined ? { crossfader: xfade } : {}),
       })
+      if (xfade !== undefined) setCrossfade(xfade)
 
       if (deck === "A") setTrackA(track)
       else setTrackB(track)
@@ -116,12 +123,19 @@ export default function DJSystem() {
 
   const handleApplyTransition = useCallback(
     (plan: TransitionPlan) => {
+      // Determine which deck is currently the "active" one
+      // The AI always generates plans as outgoing→incoming (crossfader 0→1)
+      // We need to figure out which physical deck is outgoing
       let outgoingDeck: "A" | "B" = "A"
       let incomingDeck: "A" | "B" = "B"
 
       if (isPlayingB && !isPlayingA) {
         outgoingDeck = "B"
         incomingDeck = "A"
+      } else if (isPlayingA && isPlayingB) {
+        // Both playing — the deck closer to full volume is outgoing
+        outgoingDeck = musicObject.crossfader <= 0.5 ? "A" : "B"
+        incomingDeck = outgoingDeck === "A" ? "B" : "A"
       } else if (!isPlayingA && !isPlayingB) {
         if (trackA) {
           play("A")
@@ -140,6 +154,8 @@ export default function DJSystem() {
       const cuePoint = (plan as TransitionPlan & { incomingStartSeconds?: number }).incomingStartSeconds
       if (cuePoint && cuePoint > 0) seek(incomingDeck, cuePoint)
 
+      // Before starting the incoming deck, snap the crossfader fully to the outgoing deck
+      // so the incoming deck is silent when it starts
       if (!incomingPlaying && incomingTrack) {
         const safeStart = outgoingDeck === "A" ? 0 : 1
         setCrossfade(safeStart)
@@ -152,7 +168,32 @@ export default function DJSystem() {
       setTimeout(() => {
         const adjustedPlan = { ...plan }
 
-        // Resolve trigger deck references from outgoing/incoming to A/B
+        // When B is outgoing, the AI plan was generated as A→B (0→1)
+        // We need to flip everything: crossfader values, and swap deck automations
+        if (outgoingDeck === "B") {
+          // Invert crossfader: 0→1 becomes 1→0
+          adjustedPlan.crossfadeAutomation = plan.crossfadeAutomation.map(point => ({
+            t: point.t, value: 1 - point.value,
+          }))
+
+          // Swap deck-specific automations (AI's "A" was outgoing = our B, AI's "B" was incoming = our A)
+          const origAEq = plan.deckAEqAutomation
+          const origBEq = plan.deckBEqAutomation
+          adjustedPlan.deckAEqAutomation = origBEq
+          adjustedPlan.deckBEqAutomation = origAEq
+
+          const origATempo = plan.deckATempoAutomation
+          const origBTempo = plan.deckBTempoAutomation
+          adjustedPlan.deckATempoAutomation = origBTempo
+          adjustedPlan.deckBTempoAutomation = origATempo
+
+          const origAIso = plan.deckAIsolationAutomation
+          const origBIso = plan.deckBIsolationAutomation
+          adjustedPlan.deckAIsolationAutomation = origBIso
+          adjustedPlan.deckBIsolationAutomation = origAIso
+        }
+
+        // Resolve trigger deck references AFTER the direction swap
         if (adjustedPlan.triggers) {
           adjustedPlan.triggers = adjustedPlan.triggers.map(t => ({
             ...t,
@@ -162,22 +203,13 @@ export default function DJSystem() {
           }))
         }
 
-        if (outgoingDeck === "B") {
-          adjustedPlan.crossfadeAutomation = plan.crossfadeAutomation.map(point => ({
-            t: point.t, value: 1 - point.value,
-          }))
-          adjustedPlan.deckAEqAutomation = plan.deckBEqAutomation
-          adjustedPlan.deckBEqAutomation = plan.deckAEqAutomation
-          adjustedPlan.deckATempoAutomation = plan.deckBTempoAutomation
-          adjustedPlan.deckBTempoAutomation = plan.deckATempoAutomation
-          adjustedPlan.deckAIsolationAutomation = plan.deckBIsolationAutomation
-          adjustedPlan.deckBIsolationAutomation = plan.deckAIsolationAutomation
-        }
-
+        // Ensure the crossfader starts from where it actually is right now
+        // to prevent sudden jumps
         const currentPos = musicObject.crossfader
         if (adjustedPlan.crossfadeAutomation.length > 0) {
           const expectedStart = adjustedPlan.crossfadeAutomation[0]?.value ?? 0
           if (Math.abs(currentPos - expectedStart) > 0.05) {
+            // Prepend current position and remove any early points that would cause a jump
             adjustedPlan.crossfadeAutomation = [
               { t: 0, value: currentPos },
               ...adjustedPlan.crossfadeAutomation.filter(p => p.t > 0.05),

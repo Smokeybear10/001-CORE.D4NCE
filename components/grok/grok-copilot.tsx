@@ -25,6 +25,16 @@ interface GrokCopilotProps {
   currentTimeB?: number
   durationA?: number
   durationB?: number
+  isPlayingA?: boolean
+  isPlayingB?: boolean
+  getAudioContext?: () => {
+    summary?: string
+    energyPhase?: string
+    averageEnergy?: number
+    energyTrend?: number
+    camelotA?: string | null
+    camelotB?: string | null
+  }
 }
 
 interface CoachMessage {
@@ -48,6 +58,9 @@ export function GrokCopilot({
   currentTimeB,
   durationA,
   durationB,
+  isPlayingA,
+  isPlayingB,
+  getAudioContext,
 }: GrokCopilotProps) {
   const [transitionPrompt, setTransitionPrompt] = useState("")
   const [presetPrompt, setPresetPrompt] = useState("")
@@ -83,6 +96,11 @@ export function GrokCopilot({
     addCoachMessage(`Planning transition from "${trackA.title}" to "${trackB.title}"...`, "action")
 
     try {
+      // Determine which deck is outgoing based on playback state
+      const outgoingDeck = isPlayingB && !isPlayingA ? "B"
+        : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
+        : "A"
+
       const response = await fetch("/api/grok/transition", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,6 +113,8 @@ export function GrokCopilot({
           durationA,
           currentTimeB,
           durationB,
+          outgoingDeck,
+          audioContext: getAudioContext?.(),
         }),
       })
 
