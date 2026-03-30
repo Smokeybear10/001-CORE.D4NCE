@@ -224,13 +224,15 @@ export function Mixer({
                     return (
                       <div key={band} className="flex flex-col items-center gap-1">
                         <Label>{band}</Label>
-                        <Slider
-                          orientation="vertical"
-                          value={[v + 12]}
-                          onValueChange={([n]) => onPerDeckEQChange(d, band, n - 12)}
-                          max={24} step={0.5}
-                          className="h-16 !min-h-0"
-                        />
+                        <div className="h-20 flex items-center">
+                          <Slider
+                            orientation="vertical"
+                            value={[v + 12]}
+                            onValueChange={([n]) => onPerDeckEQChange(d, band, n - 12)}
+                            max={24} step={0.5}
+                            className="h-full !min-h-0"
+                          />
+                        </div>
                         <Value highlight={v !== 0}>{v > 0 ? "+" : ""}{v.toFixed(0)}</Value>
                       </div>
                     )

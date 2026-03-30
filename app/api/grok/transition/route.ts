@@ -31,8 +31,8 @@ const transitionPlanSchema = z.object({
         value: z.number().min(0).max(1).describe("Crossfader position (0=A, 1=B)"),
       }),
     )
-    .min(3)
-    .describe("Smooth crossfader automation - avoid abrupt jumps"),
+    .min(6)
+    .describe("Smooth crossfader curve. 6-8 points. Start at 0.0, end at 1.0. Shape it to the music."),
   deckAEqAutomation: z
     .array(
       z.object({
@@ -42,8 +42,8 @@ const transitionPlanSchema = z.object({
         high: z.number().min(-12).max(12).describe("Treble/hi-hats"),
       }),
     )
-    .min(2)
-    .describe("EQ automation for deck A - use for bass swapping and smooth EQ blending"),
+    .min(4)
+    .describe("REQUIRED. EQ sculpting for outgoing deck A. 5-8 points. Actively shape each band — cut bass, duck mids, reduce highs as track exits."),
   deckBEqAutomation: z
     .array(
       z.object({
@@ -53,8 +53,8 @@ const transitionPlanSchema = z.object({
         high: z.number().min(-12).max(12),
       }),
     )
-    .min(2)
-    .describe("EQ automation for deck B - gradually bring in elements"),
+    .min(4)
+    .describe("REQUIRED. EQ sculpting for incoming deck B. 5-8 points. Start with bass at -12dB, gradually open each band independently."),
   deckATempoAutomation: z
     .array(
       z.object({
@@ -81,19 +81,19 @@ const transitionPlanSchema = z.object({
         q: z.number().min(0.1).max(20),
       }),
     )
-    .min(2)
-    .describe("Creative filter sweeps - use highpass to remove bass, lowpass to remove highs"),
+    .min(3)
+    .describe("REQUIRED. Filter sweep automation. 3-5 points. Don't leave flat — sweep it for texture/tension. Use Q resonance (2-8) at peaks."),
   fxAutomation: z
     .array(
       z.object({
         t: z.number().min(0).max(1),
-        reverb: z.number().min(0).max(1).describe("Reverb for transitions/echoes"),
-        delay: z.number().min(0).max(1).describe("Delay/echo effects for creative transitions"),
-        flangerMix: z.number().min(0).max(0.3).optional().describe("Flanger wet/dry mix (0=off, max 0.3). Use for filter_sweep, echo_out, build_up techniques"),
+        reverb: z.number().min(0).max(1).describe("Reverb — peak 0.2-0.5 during blend midpoint"),
+        delay: z.number().min(0).max(1).describe("Delay/echo — peak 0.1-0.4 for echo trails"),
+        flangerMix: z.number().min(0).max(0.3).optional().describe("Flanger — subtle texture, 0.05-0.15 during sweeps"),
       }),
     )
-    .min(2)
-    .describe("FX automation - use delay for echo-out effects, reverb for atmosphere, flanger for modulation texture"),
+    .min(4)
+    .describe("REQUIRED. FX arc — ramp up reverb+delay during blend, peak at midpoint, resolve to 0 at end. 4-6 points."),
   deckAIsolationAutomation: z
     .array(
       z.object({
@@ -103,8 +103,8 @@ const transitionPlanSchema = z.object({
         melody: z.number().min(0).max(1).describe("Melody/synth stem (0=muted, 1=full)"),
       }),
     )
-    .optional()
-    .describe("Stem isolation for Deck A. WARNING: Do NOT combine with deckAEqAutomation low cuts — causes double-cutting artifacts"),
+    .min(3)
+    .describe("REQUIRED. Stem isolation for outgoing Deck A — gradually remove stems. Start at 1,1,1 and end at 0,0,0. If using stem bass, keep EQ low at 0."),
   deckBIsolationAutomation: z
     .array(
       z.object({
@@ -114,8 +114,8 @@ const transitionPlanSchema = z.object({
         melody: z.number().min(0).max(1),
       }),
     )
-    .optional()
-    .describe("Stem isolation for Deck B. WARNING: Do NOT combine with deckBEqAutomation low cuts — causes double-cutting artifacts"),
+    .min(3)
+    .describe("REQUIRED. Stem isolation for incoming Deck B — gradually introduce stems. Start at 0,0,0 and end at 1,1,1. If using stem bass, keep EQ low at 0."),
   triggers: z
     .array(
       z.object({
@@ -135,11 +135,16 @@ const transitionPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { trackA, trackB, currentMusicObject, userPrompt, audioContext: audioCtx } = (await request.json()) as {
+    const { trackA, trackB, currentMusicObject, userPrompt, audioContext: audioCtx, currentTimeA, durationA, currentTimeB, durationB, outgoingDeck } = (await request.json()) as {
       trackA: Track
       trackB: Track
       currentMusicObject: MusicObject
       userPrompt?: string
+      currentTimeA?: number
+      durationA?: number
+      currentTimeB?: number
+      durationB?: number
+      outgoingDeck?: "A" | "B"
       audioContext?: {
         summary?: string
         energyPhase?: string
@@ -154,10 +159,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Both tracks are required" }, { status: 400 })
     }
 
+    // Determine the actual outgoing/incoming tracks based on which deck is outgoing
+    const actualOutgoing = outgoingDeck === "B" ? trackB : trackA
+    const actualIncoming = outgoingDeck === "B" ? trackA : trackB
+    const outgoingTime = outgoingDeck === "B" ? currentTimeB : currentTimeA
+    const outgoingDuration = outgoingDeck === "B" ? durationB : durationA
+    const incomingTime = outgoingDeck === "B" ? currentTimeA : currentTimeB
+    const incomingDuration = outgoingDeck === "B" ? durationA : durationB
+
     const bpmA = trackA.bpm || 128
     const bpmB = trackB.bpm || 128
-    const bpmDiff = Math.abs(bpmA - bpmB)
-    const bpmRatio = bpmB / bpmA
+    const bpmOut = actualOutgoing.bpm || 128
+    const bpmIn = actualIncoming.bpm || 128
+    const bpmDiff = Math.abs(bpmOut - bpmIn)
+    const bpmRatio = bpmIn / bpmOut
 
     // Harmonic analysis
     const camelotA = audioCtx?.camelotA ?? trackA.camelotKey ?? null
@@ -174,27 +189,33 @@ export async function POST(request: NextRequest) {
       schema: transitionPlanSchema,
       prompt: `You are DJing a set. Analyze these tracks and create a PROFESSIONAL transition plan using ADVANCED DJ TECHNIQUES.
 
-═══════════════════════════════════════════════════════════════
-TRACK A (CURRENTLY PLAYING - OUTGOING TRACK):
-═══════════════════════════════════════════════════════════════
-Title: ${trackA.title}
-Artist: ${trackA.artist}
-Genre: ${trackA.genre || "Unknown"}
-BPM: ${bpmA}
-Key: ${trackA.key || "Unknown"}
-Energy: ${((trackA.energy || 0.5) * 100).toFixed(0)}%
-Mood: ${trackA.mood || "Unknown"}
+IMPORTANT: Your plan is ALWAYS generated as A→B (outgoing=Deck A, incoming=Deck B, crossfader 0→1).
+The system will automatically flip everything if the actual direction is B→A.
 
 ═══════════════════════════════════════════════════════════════
-TRACK B (INCOMING - NEW TRACK):
+OUTGOING TRACK (Deck A in your plan — currently playing):
 ═══════════════════════════════════════════════════════════════
-Title: ${trackB.title}
-Artist: ${trackB.artist}
-Genre: ${trackB.genre || "Unknown"}
-BPM: ${bpmB}
-Key: ${trackB.key || "Unknown"}
-Energy: ${((trackB.energy || 0.5) * 100).toFixed(0)}%
-Mood: ${trackB.mood || "Unknown"}
+Title: ${actualOutgoing.title}
+Artist: ${actualOutgoing.artist}
+Genre: ${actualOutgoing.genre || "Unknown"}
+BPM: ${bpmOut}
+Key: ${actualOutgoing.key || "Unknown"}
+Energy: ${((actualOutgoing.energy || 0.5) * 100).toFixed(0)}%
+Mood: ${actualOutgoing.mood || "Unknown"}
+${outgoingTime !== undefined && outgoingDuration ? `Playback: ${Math.floor(outgoingTime / 60)}:${String(Math.floor(outgoingTime % 60)).padStart(2, "0")} / ${Math.floor(outgoingDuration / 60)}:${String(Math.floor(outgoingDuration % 60)).padStart(2, "0")} (${((outgoingTime / outgoingDuration) * 100).toFixed(0)}% through)
+Remaining: ${Math.floor((outgoingDuration - outgoingTime) / 60)}:${String(Math.floor((outgoingDuration - outgoingTime) % 60)).padStart(2, "0")}` : "Playback position: Unknown"}
+
+═══════════════════════════════════════════════════════════════
+INCOMING TRACK (Deck B in your plan — about to start):
+═══════════════════════════════════════════════════════════════
+Title: ${actualIncoming.title}
+Artist: ${actualIncoming.artist}
+Genre: ${actualIncoming.genre || "Unknown"}
+BPM: ${bpmIn}
+Key: ${actualIncoming.key || "Unknown"}
+Energy: ${((actualIncoming.energy || 0.5) * 100).toFixed(0)}%
+Mood: ${actualIncoming.mood || "Unknown"}
+${incomingDuration ? `Duration: ${Math.floor(incomingDuration / 60)}:${String(Math.floor(incomingDuration % 60)).padStart(2, "0")}` : ""}
 
 BPM Analysis: ${bpmDiff < 5 ? "✓ BPMs are close - perfect for beatmatching" : `⚠ ${bpmDiff} BPM difference - use subtle tempo adjustment (${bpmRatio.toFixed(3)}x)`}
 
@@ -207,6 +228,49 @@ Compatibility: ${harmonicLabel}${harmonicScore !== null ? ` (${(harmonicScore * 
 ${harmonicScore !== null && harmonicScore < 0.5 ? "⚠ HARMONIC CLASH — use filter sweep, echo-out, or energy drop to mask the key change. Do NOT long-blend." : ""}
 ${harmonicScore !== null && harmonicScore >= 0.85 ? "✓ Keys are harmonically compatible — long blend or EQ blend will sound great." : ""}
 
+═══════════════════════════════════════════════════════════════
+SONG STRUCTURE AWARENESS:
+═══════════════════════════════════════════════════════════════
+${outgoingTime !== undefined && outgoingDuration ? (() => {
+  const pct = outgoingTime / outgoingDuration
+  const remaining = outgoingDuration - outgoingTime
+  const estimatedBars = Math.round(remaining / (60 / bpmOut) / 4)
+  let section = "middle"
+  if (pct < 0.1) section = "intro"
+  else if (pct < 0.3) section = "early section (likely first verse/buildup)"
+  else if (pct < 0.5) section = "mid section (likely chorus/drop zone)"
+  else if (pct < 0.75) section = "late section (second half, possibly breakdown/bridge)"
+  else if (pct < 0.9) section = "near end (outro approaching)"
+  else section = "outro"
+  return `Outgoing track estimated section: ${section}
+Estimated bars remaining: ~${estimatedBars} bars at ${bpmOut} BPM
+${remaining < 30 ? "⚠ URGENT: Less than 30 seconds left — use a shorter transition!" : ""}
+${remaining < 60 ? "⚡ Under 1 minute remaining — keep transition duration under " + Math.floor(remaining * 0.7) + "s" : ""}`
+})() : "Outgoing track position: Unknown — use a standard transition length"}
+
+STRUCTURE RULES:
+- Most songs follow: Intro → Verse → Buildup → Drop/Chorus → Breakdown → Drop2 → Outro
+- Phrases are typically 8 or 16 bars (${(60 / bpmOut * 4 * 8).toFixed(0)}s for 8 bars, ${(60 / bpmOut * 4 * 16).toFixed(0)}s for 16 bars at ${bpmOut} BPM)
+- START transitions at phrase boundaries (after a drop, during a breakdown, or at the outro)
+- NEVER start during a buildup — it kills the energy
+- If the outgoing track is near its outro, you can use a longer blend
+- If the outgoing track is at a drop/chorus, wait for it to resolve before transitioning
+- Use the energy levels to infer structure: low energy = intro/breakdown, high = drop/chorus
+
+═══════════════════════════════════════════════════════════════
+CURRENT MIXER STATE:
+═══════════════════════════════════════════════════════════════
+Crossfader: ${((currentMusicObject.crossfader ?? 0.5) * 100).toFixed(0)}% (0%=Deck A, 100%=Deck B)
+Master EQ: Low ${currentMusicObject.eq?.low ?? 0}dB, Mid ${currentMusicObject.eq?.mid ?? 0}dB, High ${currentMusicObject.eq?.high ?? 0}dB
+${currentMusicObject.perDeckEq ? `Per-Deck EQ A: Low ${currentMusicObject.perDeckEq.A.low}dB, Mid ${currentMusicObject.perDeckEq.A.mid}dB, High ${currentMusicObject.perDeckEq.A.high}dB
+Per-Deck EQ B: Low ${currentMusicObject.perDeckEq.B.low}dB, Mid ${currentMusicObject.perDeckEq.B.mid}dB, High ${currentMusicObject.perDeckEq.B.high}dB` : "Per-Deck EQ: All neutral (0dB)"}
+Filter: ${currentMusicObject.filter?.type ?? "lowpass"} @ ${currentMusicObject.filter?.cutoff ?? 20000}Hz
+Reverb: ${((currentMusicObject.reverbAmount ?? 0) * 100).toFixed(0)}%, Delay: ${((currentMusicObject.delayAmount ?? 0) * 100).toFixed(0)}%
+${currentMusicObject.tracks?.A?.bassIsolation !== undefined ? `Deck A Isolation: Bass=${currentMusicObject.tracks.A.bassIsolation}, Voice=${currentMusicObject.tracks.A.voiceIsolation}, Melody=${currentMusicObject.tracks.A.melodyIsolation}` : ""}
+${currentMusicObject.tracks?.B?.bassIsolation !== undefined ? `Deck B Isolation: Bass=${currentMusicObject.tracks.B.bassIsolation}, Voice=${currentMusicObject.tracks.B.voiceIsolation}, Melody=${currentMusicObject.tracks.B.melodyIsolation}` : ""}
+
+Your EQ/Isolation starting values should match or smoothly transition from these current values!
+
 ${audioCtx?.summary ? `═══════════════════════════════════════════════════════════════
 LIVE AUDIO CONTEXT (last 60s):
 ═══════════════════════════════════════════════════════════════
@@ -216,163 +280,215 @@ Energy Phase: ${audioCtx.energyPhase ?? "unknown"} (trend: ${audioCtx.energyTren
 ${userPrompt ? `\n🎧 DJ Request: ${userPrompt}\n` : ""}
 
 ═══════════════════════════════════════════════════════════════
-CRITICAL DJ REQUIREMENTS:
+YOU MUST USE ALL OF THESE TOOLS AGGRESSIVELY:
 ═══════════════════════════════════════════════════════════════
 
-1. ⏱️ TIMING & PHRASING:
-   - Set startDelay to align with phrase boundaries (8, 16, or 32 bar phrases)
-   - NEVER transition during a build-up or right before a drop
-   - Wait for a breakdown, outro, or after a drop/chorus
-   - Consider the track's energy curve
+You have 7 powerful mixing tools. A good DJ uses ALL of them together, not just the crossfader.
+Lazy transitions that only move the crossfader sound amateur. USE EVERYTHING.
 
-2. 🎚️ BEATMATCHING:
-   - If BPM difference < 6: Use minimal tempo automation (stay within ±2%)
-   - If BPM difference > 6: Use tempo automation to gradually match BPMs
-   - Keep playbackRate between 0.95-1.05 for natural sound
-   - Beatmatch BEFORE bringing in the new track significantly
+TOOL 1 — CROSSFADER (volume balance A↔B):
+  - 0.0 = 100% A, 1.0 = 100% B
+  - Include 6-8 points minimum for smooth curves
+  - DON'T just do a linear fade — shape it to the music
 
-3. 🔊 EQ/BASS SWAPPING (CRITICAL):
-   - START with Track B bass at -12dB (completely cut)
-   - GRADUALLY swap bass frequencies between tracks:
-     * As Track A bass reduces (-12dB), Track B bass increases (0dB)
-   - Keep mids/highs present on both tracks initially
-   - This prevents muddy low-end and maintains energy
+TOOL 2 — PER-DECK EQ (deckAEqAutomation + deckBEqAutomation):
+  - This is your PRIMARY mixing tool. Use it on EVERY transition.
+  - Low (-12 to +12 dB): Controls bass/sub. ALWAYS bass-swap between decks.
+  - Mid (-12 to +12 dB): Controls vocals/melody body. Cut outgoing mids to reduce clashes.
+  - High (-12 to +12 dB): Controls hi-hats/air/brightness. Use to shape energy.
+  - Include 5-8 points per deck. Shape each band independently.
+  - BASS SWAP IS NON-NEGOTIABLE: At no point should both decks have bass above -3dB.
+  - Sculpt the mids: As incoming track grows, cut outgoing mids to make room.
+  - Use highs creatively: Bring in incoming highs early (hi-hats blend well).
 
-4. 🎛️ TECHNIQUE SELECTION:
-   - bass_swap: Classic technique, swap low frequencies smoothly
-   - eq_blend: Gradually blend all EQ bands
-   - filter_sweep: Use dramatic filter sweeps (highpass/lowpass)
-   - echo_out: Echo/delay on outgoing track while bringing in new track
-   - quick_cut: Fast transition (8-16 bars) for similar energy tracks
-   - long_blend: Extended blend (32+ bars) for atmospheric transitions
-   - energy_drop: Cut bass/filter down, then bring in new track fresh
-   - build_up: Use reverb/delay to build tension before transition
+TOOL 3 — STEM ISOLATION (deckAIsolationAutomation + deckBIsolationAutomation):
+  - bass (0-1): Bass/kick separation. Cleaner than EQ for bass swaps.
+  - voice (0-1): Vocal isolation. ESSENTIAL for avoiding vocal clashes.
+  - melody (0-1): Synths/leads/melody. Use to gradually introduce incoming melodies.
+  - USE THIS ON EVERY TRANSITION. Include 4-6 points per deck.
+  - Start incoming deck with bass=0, voice=0, melody=0.5
+  - Gradually bring in stems while removing outgoing stems.
+  - NEVER have both decks' vocals at full volume simultaneously.
+  - The winning deck MUST end at bass=1, voice=1, melody=1.
+  - ⚠️ If using stem bass isolation, keep EQ low at 0 on that deck (pick one, not both).
 
-5. 🎨 CREATIVE ELEMENTS:
-   - Use filter sweeps to create tension (highpass sweep = builds energy)
-   - Add echo/delay to outgoing track for "echo out" effect
-   - Use reverb sparingly for atmosphere during breakdowns
-   - Consider visualizer mode changes at key moments
+TOOL 4 — FILTER SWEEPS (filterAutomation):
+  - Highpass sweep (cutoff 20→2000→8000): Removes bass, creates tension/buildup feel.
+  - Lowpass sweep (cutoff 20000→1000→200): Removes highs, creates underwater/muffled feel.
+  - Use Q resonance (2-8) at the sweep peak for that classic filter resonance sound.
+  - GREAT for masking key clashes and creating energy arcs.
+  - Include 4-6 points. Don't just set it and forget — sweep it dynamically.
 
-6. 🎛️ STEM ISOLATION (ADVANCED — preferred over EQ for clean separation):
-   - Each deck has bass, voice, melody stems (0=muted, 1=full)
-   - STEM BASS SWAP: Instead of EQ low cuts, mute bass stem on incoming deck, then swap:
-     * t=0.0: Deck A bass=1, Deck B bass=0  (only A bass audible)
-     * t=0.4: Deck A bass=1, Deck B bass=0  (wait for phrase boundary)
-     * t=0.5: Deck A bass=0, Deck B bass=1  (instant clean swap at the drop/phrase)
-     * t=1.0: Deck A bass=0, Deck B bass=1
-   - VOCAL CLASH AVOIDANCE: If both tracks have vocals, mute voice on outgoing during overlap:
-     * t=0.3: Deck A voice=0.5 (duck outgoing vocals as B comes in)
-     * t=0.6: Deck A voice=0   (fully mute outgoing vocals)
-   - ⚠️ NEVER combine stem isolation bass with EQ low cuts on the SAME deck — causes double-cutting
+TOOL 5 — FX (fxAutomation — reverb, delay, flanger):
+  - Reverb (0-1): Atmosphere. Use during breakdowns, ramp up to 0.3-0.5 during blend.
+  - Delay (0-1): Echo trails. Amazing for echo-out transitions. Ramp to 0.4-0.7.
+  - Flanger (0-0.3): Swirling modulation. Subtle but adds texture during sweeps.
+  - Don't leave FX at 0 the whole time — use them! Ramp up during the blend, back to 0 at end.
+  - Include 4-6 points. Create FX arcs that peak during the transition midpoint.
 
-7. 🌀 FLANGER MODULATION:
-   - Use flangerMix in fxAutomation (0=off, max 0.3)
-   - Best for: filter_sweep, echo_out, build_up techniques
-   - Ramp: 0→0.2 from t=0.2-0.5, hold, back to 0 by t=0.9
-   - Adds swirling texture during blends — don't overuse
+TOOL 6 — TEMPO (deckATempoAutomation + deckBTempoAutomation):
+  - If BPM differs by >3, gradually match tempos during the blend.
+  - Adjust the incoming track toward the outgoing BPM, then settle.
+  - Keep within 0.95-1.05 (±5%). Start matching BEFORE the crossfader moves significantly.
 
-8. 💥 ONE-SHOT TRIGGERS:
-   - vinylBrake: Slow-stop effect on outgoing deck. Only for quick_cut or energy_drop
-   - spinback: Reverse scratch. Dramatic effect for hard transitions
-   - Fire at t=0.8-0.95 on the outgoing deck for maximum impact
-   - Use sparingly — one trigger per transition maximum
-
-9. ⏳ DURATION:
-   - Quick transitions: 16-24 seconds (fast energy maintenance)
-   - Standard: 24-48 seconds (most common)
-   - Long blends: 48-90 seconds (atmospheric, progressive)
-   - Match duration to energy difference and genre
+TOOL 7 — TRIGGERS (one-shot effects):
+  - vinylBrake on outgoing deck at t=0.85-0.95 for quick_cut/energy_drop.
+  - spinback for dramatic hard cuts.
+  - Only use when the technique calls for it. One per transition max.
 
 ═══════════════════════════════════════════════════════════════
-CRITICAL: CROSSFADER AUTOMATION (MANDATORY!)
+TIMING — READ THE SONG:
 ═══════════════════════════════════════════════════════════════
-The crossfadeAutomation array controls the volume balance between decks:
-- value: 0.0 = 100% Deck A, 0% Deck B (A is fully audible, B is silent)
-- value: 0.5 = 50% Deck A, 50% Deck B (both at equal volume)
-- value: 1.0 = 0% Deck A, 100% Deck B (A is silent, B is fully audible)
+Look at the outgoing track's playback position and energy to determine WHERE in the song we are:
+- 0-10%: Intro — good time to start blending if short transition
+- 10-30%: Verse/buildup — wait for the phrase boundary, don't interrupt
+- 30-50%: Chorus/drop zone — let the drop hit, then start transitioning after
+- 50-75%: Second half — breakdown/bridge area, IDEAL for starting transitions
+- 75-90%: Approaching outro — start transitioning NOW, this is prime time
+- 90%+: Outro — you're running out of time, use a faster technique
 
-REQUIRED CROSSFADER PATTERN (smooth fade from A to B):
-crossfadeAutomation: [
-  { t: 0.0, value: 0.0 },   // Start: 100% on Deck A
-  { t: 0.2, value: 0.1 },   // Begin bringing in B
-  { t: 0.4, value: 0.3 },   // Gradual blend
-  { t: 0.6, value: 0.7 },   // B becoming dominant
-  { t: 0.8, value: 0.9 },   // Almost fully on B
-  { t: 1.0, value: 1.0 }    // End: 100% on Deck B
-]
-
-You MUST include at least 4-6 crossfade points for a smooth transition!
+Set startDelay (0-60s) to wait for the next phrase boundary. Phrases are typically:
+- 8 bars = ${(60 / bpmOut * 4 * 8).toFixed(0)}s at ${bpmOut} BPM
+- 16 bars = ${(60 / bpmOut * 4 * 16).toFixed(0)}s at ${bpmOut} BPM
 
 ═══════════════════════════════════════════════════════════════
-EXAMPLE BASS SWAP TECHNIQUE:
+TECHNIQUE DECISION TREE:
 ═══════════════════════════════════════════════════════════════
-Crossfade (volume balance):
-t=0.0: crossfader=0.0   (100% A, 0% B)
-t=0.3: crossfader=0.2   (80% A, 20% B)
-t=0.5: crossfader=0.5   (50% A, 50% B)
-t=0.7: crossfader=0.8   (20% A, 80% B)
-t=1.0: crossfader=1.0   (0% A, 100% B)
+Choose based on the tracks:
 
-EQ (bass swapping to avoid mud):
-t=0.0: Deck A: low=0,  Deck B: low=-12  (B bass cut completely)
-t=0.3: Deck A: low=0,  Deck B: low=-12  (wait for phrase)
-t=0.5: Deck A: low=-6, Deck B: low=-6   (swap bass midpoint)
-t=0.7: Deck A: low=-12, Deck B: low=0   (B takes over bass)
-t=1.0: Deck A: low=-12, Deck B: low=0   (A bass cut completely)
+Same genre + similar BPM + compatible keys → bass_swap or eq_blend (24-48s)
+  Use: Heavy EQ work, stem isolation, subtle FX. This should sound seamless.
+
+Same genre + similar BPM + clashing keys → filter_sweep or echo_out (16-32s)
+  Use: Aggressive filter sweep to mask the key clash. Heavy reverb/delay on outgoing.
+
+Different energy levels → energy_drop or build_up (24-48s)
+  Use: If going UP: build_up with filter sweep + reverb into the drop.
+        If going DOWN: energy_drop, cut bass, filter down, let incoming breathe.
+
+Very different BPMs (>8 diff) → quick_cut or echo_out (8-24s)
+  Use: Don't try to beatmatch, just do a clean handoff. Echo/reverb on outgoing.
+
+Similar vibe/genre → long_blend (48-90s)
+  Use: Gradual everything. Slow EQ sculpting, stem blending, gentle filter movement.
 
 ═══════════════════════════════════════════════════════════════
+FULL EXAMPLE — PROFESSIONAL bass_swap TRANSITION (32s):
+═══════════════════════════════════════════════════════════════
 
-Generate a professional, creative transition plan with SMOOTH crossfading!`,
-      system: `You are a WORLD-CLASS professional DJ with 20+ years of experience. You understand:
-- Phrasing (8/16/32 bar structures in electronic music)
-- Beatmatching and harmonic mixing (Camelot wheel)
-- EQ technique and frequency management (bass swapping is ESSENTIAL)
-- Creative FX use (echo out, filter sweeps, reverb throws)
-- Energy flow, energy arcs, and crowd dynamics
-- Genre-specific mixing techniques
+crossfadeAutomation (8 points):
+  t=0.00: 0.00  |  t=0.10: 0.05  |  t=0.25: 0.15  |  t=0.40: 0.35
+  t=0.55: 0.55  |  t=0.70: 0.75  |  t=0.85: 0.92  |  t=1.00: 1.00
 
-RULES:
-1. MANDATORY: Create smooth crossfadeAutomation from 0.0 → 1.0 with at least 5 points
-2. ALWAYS use proper bass swapping - never have both tracks at full bass simultaneously
-3. ALWAYS consider timing - don't transition at bad moments
-4. Use tempo automation ONLY for beatmatching (±5% max for natural sound)
-5. Create SMOOTH automation curves (at least 4-6 points per parameter)
-6. Match technique to the energy difference and genres
-7. Be CREATIVE with filters and FX
+deckAEqAutomation (6 points):
+  t=0.00: low=0, mid=0, high=0
+  t=0.25: low=0, mid=0, high=-2         (start reducing A highs slightly)
+  t=0.40: low=-4, mid=-3, high=-4       (start pulling A back)
+  t=0.55: low=-8, mid=-6, high=-6       (A stepping down hard)
+  t=0.75: low=-12, mid=-9, high=-8      (A almost gone)
+  t=1.00: low=-12, mid=-12, high=-12    (A fully cut)
 
-STEM ISOLATION vs EQ RULES:
-8. NEVER use stem isolation bass + EQ low cuts on the same deck simultaneously — this double-cuts and sounds hollow
-9. If using deckAIsolationAutomation, keep deckAEqAutomation low at 0 (neutral). Pick ONE approach per deck.
-10. Prefer stem isolation for bass swaps (cleaner separation) and EQ for subtle tonal shaping
-11. Vocal isolation is great for avoiding clashes — mute outgoing vocals when incoming vocals are prominent
+deckBEqAutomation (6 points):
+  t=0.00: low=-12, mid=-6, high=-3      (B bass cut, some mids/highs bleeding through)
+  t=0.20: low=-12, mid=-4, high=-1      (B highs coming in first)
+  t=0.40: low=-8, mid=-2, high=0        (B mids opening up)
+  t=0.55: low=-3, mid=0, high=0         (B bass starting to come in as A bass drops)
+  t=0.75: low=0, mid=0, high=0          (B fully open)
+  t=1.00: low=0, mid=0, high=0          (B clean)
 
-TRIGGER RULES:
-12. vinylBrake ONLY for quick_cut or energy_drop techniques, on the OUTGOING deck
-13. spinback ONLY for dramatic hard cuts, on the OUTGOING deck
-14. Maximum ONE trigger per transition
-15. Fire triggers at t=0.8-0.95 (near the end of the transition)
+deckAIsolationAutomation (5 points):
+  t=0.00: bass=1, voice=1, melody=1
+  t=0.30: bass=1, voice=0.7, melody=0.8 (start ducking A vocals/melody)
+  t=0.50: bass=0.5, voice=0.3, melody=0.5
+  t=0.75: bass=0, voice=0, melody=0.2
+  t=1.00: bass=0, voice=0, melody=0
 
-FLANGER RULES:
-16. flangerMix max 0.3 — subtle modulation texture only
-17. Best paired with filter_sweep, echo_out, or build_up techniques
-18. Ramp up gradually, always return to 0 before transition ends
-19. Do NOT use flanger for quick_cut transitions
+deckBIsolationAutomation (5 points):
+  t=0.00: bass=0, voice=0, melody=0.3   (just a hint of B melody)
+  t=0.25: bass=0, voice=0.3, melody=0.5 (B melody growing)
+  t=0.45: bass=0.5, voice=0.6, melody=0.8 (B stems coming in)
+  t=0.65: bass=1, voice=0.8, melody=1   (B bass drops in)
+  t=1.00: bass=1, voice=1, melody=1     (B fully active)
 
-HARMONIC MIXING RULES:
-- If harmonic compatibility is PERFECT/GOOD (≥70%): use long blends, EQ blends, bass swaps — the keys will sound great together
-- If compatibility is OK (50-70%): prefer shorter blends, use filter sweeps during the overlap
-- If compatibility is CLASH (<50%): NEVER long-blend. Use echo-out, quick cut, or energy drop. Mask the key change with effects.
-- When keys clash, cut the mids on the outgoing track EARLY to reduce dissonance
+filterAutomation (4 points):
+  t=0.00: cutoff=20000, q=1
+  t=0.30: cutoff=8000, q=2              (slight filter sweep for texture)
+  t=0.60: cutoff=14000, q=1.5
+  t=1.00: cutoff=20000, q=1             (back to fully open)
 
-ENERGY ARC AWARENESS:
-- If energy phase is "build" or "warmup": favor techniques that maintain momentum (quick_cut, build_up)
-- If energy phase is "peak": use bass_swap or eq_blend to keep energy high
-- If energy phase is "cooldown": long_blend or filter_sweep for smooth wind-down
-- Match the transition technique to where the set is in the energy arc
+fxAutomation (5 points):
+  t=0.00: reverb=0, delay=0, flangerMix=0
+  t=0.20: reverb=0.15, delay=0.1, flangerMix=0.05
+  t=0.45: reverb=0.3, delay=0.2, flangerMix=0.1   (FX peak during blend)
+  t=0.75: reverb=0.1, delay=0.05, flangerMix=0.03
+  t=1.00: reverb=0, delay=0, flangerMix=0          (clean exit)
 
-The crossfader is the MOST IMPORTANT automation - without it, both tracks play at full volume!
-Your transitions should sound professional and maintain dancefloor energy.`,
+THIS is what a real transition looks like. Every tool working together.
+DO NOT generate a transition with flat/empty EQ, empty isolation, or zero FX.
+
+Generate an aggressive, professional transition that sounds like a world-class DJ mixed it.`,
+      system: `You are a WORLD-CLASS DJ performing at a major festival. You are known for your flawless transitions.
+
+Your philosophy: A transition should be an EVENT, not just a crossfade. Every transition uses ALL available tools — EQ sculpting, stem isolation, filter sweeps, FX — layered together to create a seamless blend that the crowd barely notices but would definitely notice if done badly.
+
+HARD RULES (violations = amateur hour):
+1. crossfadeAutomation: 6-8 points minimum. Smooth S-curve, not linear.
+2. deckAEqAutomation: 5-8 points. Actively sculpt each band (low/mid/high independently).
+3. deckBEqAutomation: 5-8 points. Start incoming with bass at -12dB, gradually open up.
+4. BASS SWAP: At NO point should both decks have bass above -3dB. This is the #1 amateur mistake.
+5. deckAIsolationAutomation: ALWAYS include this. 4-6 points. Gradually remove outgoing stems.
+6. deckBIsolationAutomation: ALWAYS include this. 4-6 points. Gradually introduce incoming stems.
+7. filterAutomation: 3-5 points. NEVER leave it flat at 20kHz the whole time. Move it.
+8. fxAutomation: 4-6 points. Create an FX arc — ramp up during blend, back to 0 at end.
+9. Reverb should peak at 0.2-0.5 during the blend midpoint. Delay at 0.1-0.4.
+10. Tempo automation if BPMs differ by >3.
+
+STEM ISOLATION STRATEGY:
+- Start incoming deck with all stems at 0 or very low
+- Bring in melody/highs first (t=0.1-0.3) — they blend easily
+- Bring in vocals carefully — NEVER overlap both decks' vocals at full
+- Bass is the LAST stem to bring in on incoming, FIRST to remove on outgoing
+- This creates natural "layers" that unfold over time
+
+EQ SCULPTING STRATEGY:
+- Think of each band as independent. Don't just move all three together.
+- Highs first: Incoming highs can appear early (hi-hats/cymbals blend well)
+- Mids next: As incoming mids grow, cut outgoing mids to make space
+- Bass last: The bass swap is the dramatic moment — it should happen decisively, not gradually
+- Use EQ boosts (+2 to +4dB) on incoming to make elements pop, not just cuts
+
+FILTER STRATEGY:
+- For TENSION: Highpass sweep outgoing from 20→3000Hz while incoming enters clean
+- For ATMOSPHERE: Gentle lowpass dip to 8000-12000Hz during blend, back to 20kHz
+- Use Q resonance (3-8) at the sweep peak for that DJ filter sound
+- Sweep timing should match phrase boundaries
+
+FX STRATEGY:
+- Echo-out: Ramp delay to 0.3-0.6 on outgoing while muting it — creates trailing echoes
+- Atmosphere: Reverb 0.2-0.4 during breakdown blends
+- Texture: Flanger 0.05-0.15 during filter sweeps for movement
+- FX should ARC: build up → peak → resolve. Never flat.
+
+TIMING INTELLIGENCE:
+- Read the playback position carefully. If the outgoing track is:
+  * Near a drop/chorus: Wait for it to resolve (set startDelay)
+  * In a breakdown: Perfect — start transitioning now
+  * In the outro: Start immediately, match the transition to remaining time
+  * Early in the song: Set a longer startDelay to wait for a good exit point
+- The transition duration should NEVER exceed the remaining time on the outgoing track
+
+HARMONIC RULES:
+- Compatible keys (≥70%): Go wild with long blends and open EQ
+- Clashing keys (<50%): MASK IT. Heavy filter sweep, FX wash, quick bass swap. Cut outgoing mids early.
+- Use the filter as a key-clash shield — highpass the outgoing to remove the clashing fundamentals
+
+ENERGY MATCHING:
+- High→High: bass_swap or eq_blend. Keep it tight and punchy.
+- High→Low: energy_drop. Cut bass + filter sweep down, let new track breathe in quietly.
+- Low→High: build_up. Reverb/filter tension into the incoming track's drop.
+- Similar energy: long_blend or eq_blend with heavy stem work.
+
+Your transitions should sound like they belong on a festival main stage recording.`,
     })
 
     return NextResponse.json({

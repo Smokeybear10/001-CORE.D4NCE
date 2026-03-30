@@ -107,6 +107,7 @@ export class MusicEngine {
 
   private musicObject: MusicObject = { ...defaultMusicObject }
   private transitionInterval: ReturnType<typeof setInterval> | null = null
+  private recoveryInterval: ReturnType<typeof setInterval> | null = null
   private playLock = { A: false, B: false }
   private loopTimeouts: { A: ReturnType<typeof setTimeout> | null; B: ReturnType<typeof setTimeout> | null } = { A: null, B: null }
   private transitionState: TransitionState = {
@@ -115,7 +116,7 @@ export class MusicEngine {
     startTime: 0,
     duration: 0,
     currentValues: {
-      crossfader: 0.5,
+      crossfader: 0,
       filterCutoff: 20000,
       filterQ: 1,
       reverb: 0,
@@ -808,6 +809,10 @@ export class MusicEngine {
       clearInterval(this.transitionInterval)
       this.transitionInterval = null
     }
+    if (this.recoveryInterval) {
+      clearInterval(this.recoveryInterval)
+      this.recoveryInterval = null
+    }
 
     // Reset isolation gains to prevent stems being stuck in isolated state
     for (const d of [this.deckA, this.deckB]) {
@@ -852,6 +857,10 @@ export class MusicEngine {
     if (this.transitionInterval) {
       clearInterval(this.transitionInterval)
       this.transitionInterval = null
+    }
+    if (this.recoveryInterval) {
+      clearInterval(this.recoveryInterval)
+      this.recoveryInterval = null
     }
 
     const startTime = Date.now()
@@ -1086,8 +1095,144 @@ export class MusicEngine {
       if (progress >= 1) {
         clearInterval(this.transitionInterval!)
         this.transitionInterval = null
+        this.startPostTransitionRecovery()
       }
     }, 50)
+  }
+
+  private startPostTransitionRecovery(): void {
+    if (this.recoveryInterval) {
+      clearInterval(this.recoveryInterval)
+    }
+
+    const recoveryRate = 0.03
+    const threshold = 0.1
+
+    this.recoveryInterval = setInterval(() => {
+      let allNeutral = true
+
+      // Drift per-deck EQ back to 0
+      for (const deckKey of ["A", "B"] as const) {
+        const deck = deckKey === "A" ? this.deckA : this.deckB
+        for (const node of [
+          { ref: deck.eqLow, key: "low" as const },
+          { ref: deck.eqMid, key: "mid" as const },
+          { ref: deck.eqHigh, key: "high" as const },
+        ]) {
+          if (!node.ref) continue
+          const current = node.ref.gain.value
+          if (Math.abs(current) > threshold) {
+            allNeutral = false
+            node.ref.gain.value = current * (1 - recoveryRate)
+          } else if (current !== 0) {
+            node.ref.gain.value = 0
+          }
+        }
+      }
+
+      // Drift isolation gains back to 0 (inactive) — the dry path handles full audio
+      for (const deckKey of ["A", "B"] as const) {
+        const deck = deckKey === "A" ? this.deckA : this.deckB
+        for (const node of [deck.bassIsolateGain, deck.voiceIsolateGain, deck.melodyIsolateGain]) {
+          if (!node) continue
+          const current = node.gain.value
+          if (current > threshold) {
+            allNeutral = false
+            node.gain.value = current * (1 - recoveryRate)
+          } else if (current > 0) {
+            node.gain.value = 0
+          }
+        }
+        // Re-enable dry path once isolation is back to zero
+        const anyIso = (deck.bassIsolateGain?.gain.value ?? 0) > threshold ||
+                       (deck.voiceIsolateGain?.gain.value ?? 0) > threshold ||
+                       (deck.melodyIsolateGain?.gain.value ?? 0) > threshold
+        if (deck.dryPath && !anyIso) {
+          deck.dryPath.gain.value = 1
+        }
+      }
+
+      // Drift filter back to wide open (20kHz lowpass)
+      if (this.filter) {
+        const cutoff = this.filter.frequency.value
+        if (cutoff < 19000) {
+          allNeutral = false
+          this.filter.frequency.value = cutoff + (20000 - cutoff) * recoveryRate
+        } else if (cutoff < 20000) {
+          this.filter.frequency.value = 20000
+        }
+        const q = this.filter.Q.value
+        if (Math.abs(q - 1) > 0.05) {
+          allNeutral = false
+          this.filter.Q.value = q + (1 - q) * recoveryRate
+        } else {
+          this.filter.Q.value = 1
+        }
+      }
+
+      // Drift reverb/delay back to 0
+      if (this.reverbGain && this.reverbGain.gain.value > 0.005) {
+        allNeutral = false
+        this.reverbGain.gain.value *= (1 - recoveryRate)
+      } else if (this.reverbGain) {
+        this.reverbGain.gain.value = 0
+      }
+      if (this.delayWet && this.delayWet.gain.value > 0.005) {
+        allNeutral = false
+        this.delayWet.gain.value *= (1 - recoveryRate)
+      } else if (this.delayWet) {
+        this.delayWet.gain.value = 0
+      }
+      if (this.delayFeedback && this.delayFeedback.gain.value > 0.005) {
+        this.delayFeedback.gain.value *= (1 - recoveryRate)
+      } else if (this.delayFeedback) {
+        this.delayFeedback.gain.value = 0
+      }
+
+      // Drift flanger back to 0
+      if (this.flangerWet && this.flangerWet.gain.value > 0.005) {
+        allNeutral = false
+        this.flangerWet.gain.value *= (1 - recoveryRate)
+      } else if (this.flangerWet) {
+        this.flangerWet.gain.value = 0
+      }
+      if (this.flangerDry && this.flangerDry.gain.value < 0.995) {
+        this.flangerDry.gain.value += (1 - this.flangerDry.gain.value) * recoveryRate
+      }
+
+      // Update musicObject to reflect recovery
+      this.musicObject = {
+        ...this.musicObject,
+        reverbAmount: this.reverbGain?.gain.value ?? 0,
+        delayAmount: this.delayWet?.gain.value ?? 0,
+        filter: {
+          ...this.musicObject.filter,
+          cutoff: this.filter?.frequency.value ?? 20000,
+          q: this.filter?.Q.value ?? 1,
+        },
+        fx: {
+          ...this.musicObject.fx,
+          flangerMix: this.flangerWet?.gain.value ?? 0,
+        },
+        perDeckEq: {
+          A: {
+            low: this.deckA.eqLow?.gain.value ?? 0,
+            mid: this.deckA.eqMid?.gain.value ?? 0,
+            high: this.deckA.eqHigh?.gain.value ?? 0,
+          },
+          B: {
+            low: this.deckB.eqLow?.gain.value ?? 0,
+            mid: this.deckB.eqMid?.gain.value ?? 0,
+            high: this.deckB.eqHigh?.gain.value ?? 0,
+          },
+        },
+      }
+
+      if (allNeutral) {
+        clearInterval(this.recoveryInterval!)
+        this.recoveryInterval = null
+      }
+    }, 100)
   }
 
   private interpolateAutomation(points: { t: number; value: number }[], progress: number): number {
@@ -1168,6 +1313,10 @@ export class MusicEngine {
     if (this.transitionInterval) {
       clearInterval(this.transitionInterval)
       this.transitionInterval = null
+    }
+    if (this.recoveryInterval) {
+      clearInterval(this.recoveryInterval)
+      this.recoveryInterval = null
     }
 
     this.transitionCallbacks.clear()

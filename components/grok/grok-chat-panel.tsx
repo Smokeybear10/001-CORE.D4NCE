@@ -217,7 +217,7 @@ export function GrokChatPanel({
               // Normal transition between currently loaded tracks
               if (trackA && trackB) {
                 try {
-                  console.log("[GrokChat] Requesting transition from A to B")
+                  console.log("[GrokChat] Requesting transition between loaded tracks")
                   const response = await fetch("/api/grok/transition", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -230,6 +230,7 @@ export function GrokChatPanel({
                       durationA,
                       currentTimeB,
                       durationB,
+                      audioContext: getAudioContext?.(),
                     }),
                   })
 

@@ -121,7 +121,7 @@ export interface TransitionPlan {
   deckBTempoAutomation?: { t: number; playbackRate: number }[]
   filterAutomation?: { t: number; cutoff: number; q: number }[]
   fxAutomation?: { t: number; reverb: number; delay: number; flangerMix?: number }[]
-  // Stem isolation automation per deck (0=stem off, 1=stem active/audible)
+  // Stem isolation automation per deck (0=stem muted, 1=stem full)
   deckAIsolationAutomation?: { t: number; bass: number; voice: number; melody: number }[]
   deckBIsolationAutomation?: { t: number; bass: number; voice: number; melody: number }[]
   // One-shot effects fired at specific transition points
@@ -176,7 +176,7 @@ export const defaultMusicObject: MusicObject = {
   key: "C",
   energy: 0.5,
   masterGain: 0.8,
-  crossfader: 0.5,
+  crossfader: 0,
 
   tracks: {
     A: null,

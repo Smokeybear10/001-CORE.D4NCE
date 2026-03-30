@@ -13,7 +13,7 @@ const defaultTransitionState: TransitionState = {
   startTime: 0,
   duration: 0,
   currentValues: {
-    crossfader: 0.5,
+    crossfader: 0,
     filterCutoff: 20000,
     filterQ: 1,
     reverb: 0,

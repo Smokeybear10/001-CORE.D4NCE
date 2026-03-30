@@ -63,15 +63,19 @@ interface Particle {
 }
 
 function spawnParticle(W: number, H: number, deck: "A" | "B"): Particle {
-  const side = deck === "A" ? 0 : 1
+  const cx = W / 2
+  const cy = H / 2
+  const innerR = Math.min(W, H) * 0.18
+  const angle = Math.random() * Math.PI * 2
+  const speed = 0.3 + Math.random() * 0.8
   return {
-    x: W * (0.2 + side * 0.6) + (Math.random() - 0.5) * W * 0.3,
-    y: H * 0.8 + Math.random() * H * 0.15,
-    vx: (Math.random() - 0.5) * 0.8,
-    vy: -(1 + Math.random() * 2),
-    size: 1.5 + Math.random() * 3,
+    x: cx + Math.cos(angle) * (innerR + Math.random() * 10),
+    y: cy + Math.sin(angle) * (innerR + Math.random() * 10),
+    vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 0.3,
+    vy: Math.sin(angle) * speed + (Math.random() - 0.5) * 0.3,
+    size: 1 + Math.random() * 2.5,
     life: 1,
-    maxLife: 60 + Math.random() * 120,
+    maxLife: 80 + Math.random() * 140,
     deck,
   }
 }
@@ -96,12 +100,6 @@ function drawCircular(
   const maxBarH = Math.min(W, H) * 0.28
   const silent = freq.every(v => v < 2)
 
-  const glowCol = lerpColor(colA, colC, crossfader)
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerR * 1.5)
-  glow.addColorStop(0, `rgba(${rgbStr(glowCol)},0.08)`)
-  glow.addColorStop(1, `rgba(${rgbStr(glowCol)},0)`)
-  ctx.fillStyle = glow
-  ctx.fillRect(0, 0, W, H)
 
   for (let i = 0; i < count; i++) {
     const fi = Math.floor((i / count) * freq.length * 0.8)
@@ -314,8 +312,12 @@ function updateAndDrawParticles(
   colA: number[], colC: number[],
   crossfader: number,
   energy: number,
-  W: number, H: number
+  W: number, H: number,
+  t: number
 ) {
+  const cx = W / 2
+  const cy = H / 2
+
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]
     p.life--
@@ -324,25 +326,46 @@ function updateAndDrawParticles(
       continue
     }
 
-    p.x += p.vx
-    p.y += p.vy * (0.5 + energy * 2)
-    p.vx += (Math.random() - 0.5) * 0.1
-    p.vy *= 0.99
+    const dx = p.x - cx
+    const dy = p.y - cy
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1
 
-    const alpha = (p.life / p.maxLife) * (0.3 + energy * 0.5)
+    const tangentX = -dy / dist
+    const tangentY = dx / dist
+    const swirl = 0.15 + energy * 0.4
+
+    p.vx += tangentX * swirl * 0.08 + (Math.random() - 0.5) * 0.05
+    p.vy += tangentY * swirl * 0.08 + (Math.random() - 0.5) * 0.05
+
+    const outward = 0.02 + energy * 0.06
+    p.vx += (dx / dist) * outward
+    p.vy += (dy / dist) * outward
+
+    p.vx *= 0.97
+    p.vy *= 0.97
+
+    p.x += p.vx
+    p.y += p.vy
+
+    const lifeRatio = p.life / p.maxLife
+    const alpha = lifeRatio * (0.15 + energy * 0.35) * Math.min(1, (1 - lifeRatio) * 5)
     const col = p.deck === "A" ? colA : colC
     const blendCol = lerpColor(col, p.deck === "A" ? colC : colA, crossfader * 0.3)
 
     ctx.fillStyle = `rgba(${rgbStr(blendCol)},${alpha})`
     ctx.beginPath()
-    ctx.arc(p.x, p.y, p.size * (0.5 + (p.life / p.maxLife) * 0.5), 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, p.size * (0.3 + lifeRatio * 0.7), 0, Math.PI * 2)
     ctx.fill()
   }
 
-  const spawnCount = Math.floor(energy * 4)
+  const spawnCount = Math.max(1, Math.floor(energy * 5 + 0.5))
   for (let i = 0; i < spawnCount; i++) {
     const deck = Math.random() < crossfader ? "B" : "A"
     particles.push(spawnParticle(W, H, deck))
+  }
+
+  if (particles.length > 300) {
+    particles.splice(0, particles.length - 300)
   }
 }
 
@@ -422,8 +445,8 @@ export function ThreeVisualizer({ analyserData, musicObject }: VisualizerProps) 
         return
       }
 
-      // Subtle trail effect for smoother visuals
-      ctx.fillStyle = "rgba(6,6,11,0.15)"
+      // Trail fade — clears previous frame smoothly
+      ctx.fillStyle = "rgba(6,6,11,0.22)"
       ctx.fillRect(0, 0, W, H)
 
       // Beat flash
@@ -441,7 +464,7 @@ export function ThreeVisualizer({ analyserData, musicObject }: VisualizerProps) 
         drawCircular(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, t, cf)
       }
 
-      updateAndDrawParticles(ctx, particlesRef.current, colA, colC, cf, energyRef.current, W, H)
+      updateAndDrawParticles(ctx, particlesRef.current, colA, colC, cf, energyRef.current, W, H, t)
 
       animRef.current = requestAnimationFrame(draw)
     }
