@@ -23,7 +23,7 @@ const presetSchema = z.object({
   reverbAmount: z.number().min(0).max(1),
   delayAmount: z.number().min(0).max(1),
   delayFeedback: z.number().min(0).max(0.9),
-  visualizerMode: z.enum(["cymatic", "particles", "tunnel", "waveform"]),
+  visualizerMode: z.enum(["cymatic", "tunnel", "waveform", "spectrum"]),
   visualSensitivity: z.number().min(0).max(1),
   colorScheme: z.enum(["cyberpunk", "neon", "monochrome", "fire"]),
   explanation: z.string().describe("DJ coach explanation of the preset"),

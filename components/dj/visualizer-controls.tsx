@@ -2,7 +2,7 @@
 
 import type React from "react"
 import type { MusicObject } from "@/lib/types"
-import { BarChart2, CircleDot, AudioWaveform, Activity, Dna } from "lucide-react"
+import { CircleDot, AudioWaveform, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface VisualizerControlsProps {
@@ -15,11 +15,9 @@ interface VisualizerControlsProps {
 }
 
 const modes: { value: MusicObject["visualizerMode"]; icon: React.ReactNode; label: string }[] = [
-  { value: "particles", icon: <BarChart2 className="h-3.5 w-3.5" />,     label: "Bars"     },
   { value: "cymatic",   icon: <CircleDot className="h-3.5 w-3.5" />,     label: "Radial"   },
   { value: "waveform",  icon: <AudioWaveform className="h-3.5 w-3.5" />, label: "Wave"     },
   { value: "spectrum",  icon: <Activity className="h-3.5 w-3.5" />,      label: "Spectrum"  },
-  { value: "helix",     icon: <Dna className="h-3.5 w-3.5" />,           label: "Helix"    },
 ]
 
 // 3 schemes — swatch shows deck A color → deck B color (the crossfade shift)

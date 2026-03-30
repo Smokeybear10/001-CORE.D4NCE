@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --port 3737",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "start": "next start"

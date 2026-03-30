@@ -16,6 +16,9 @@ export interface TransitionState {
     filterQ: number
     reverb: number
     delay: number
+    flangerMix: number
+    deckAIsolation: { bass: number; voice: number; melody: number }
+    deckBIsolation: { bass: number; voice: number; melody: number }
   }
 }
 
@@ -117,6 +120,9 @@ export class MusicEngine {
       filterQ: 1,
       reverb: 0,
       delay: 0,
+      flangerMix: 0,
+      deckAIsolation: { bass: 0, voice: 0, melody: 0 },
+      deckBIsolation: { bass: 0, voice: 0, melody: 0 },
     },
   }
   private transitionCallbacks: Set<TransitionCallback> = new Set()
@@ -477,20 +483,35 @@ export class MusicEngine {
     if (!d.loop?.active || !d.isPlaying) return
 
     const currentTime = this.getCurrentTime(deck)
-    const timeUntilEnd = d.loop.endTime - currentTime
 
-    if (timeUntilEnd <= 0) {
+    if (currentTime >= d.loop.endTime) {
       // Already past loop end, jump back now
       this.seek(deck, d.loop.startTime)
+      // Re-schedule after seeking
+      this.loopTimeouts[deck] = setTimeout(() => this.scheduleLoopReturn(deck), 10)
       return
     }
 
+    // Account for playback rate in timeout calculation
+    const trackSettings = this.musicObject?.tracks?.[deck]
+    const rate = trackSettings?.playbackRate ?? 1
+    const timeUntilEnd = d.loop.endTime - currentTime
+    // Use a shorter check interval to avoid drift — poll at ~20ms before expected end
+    const waitMs = Math.max(5, (timeUntilEnd / rate) * 1000 - 20)
+
     this.loopTimeouts[deck] = setTimeout(() => {
-      if (d.loop?.active && d.isPlaying) {
+      if (!d.loop?.active || !d.isPlaying) return
+
+      const now = this.getCurrentTime(deck)
+      if (now >= d.loop.endTime - 0.02) {
+        // Close enough to end — jump back
         this.seek(deck, d.loop.startTime)
         this.scheduleLoopReturn(deck)
+      } else {
+        // Not there yet (rate changed mid-loop?) — re-check soon
+        this.scheduleLoopReturn(deck)
       }
-    }, timeUntilEnd * 1000)
+    }, waitMs)
   }
 
   private clearLoopTimeout(deck: "A" | "B"): void {
@@ -787,6 +808,18 @@ export class MusicEngine {
       clearInterval(this.transitionInterval)
       this.transitionInterval = null
     }
+
+    // Reset isolation gains to prevent stems being stuck in isolated state
+    for (const d of [this.deckA, this.deckB]) {
+      if (d.bassIsolateGain) d.bassIsolateGain.gain.value = 0
+      if (d.voiceIsolateGain) d.voiceIsolateGain.gain.value = 0
+      if (d.melodyIsolateGain) d.melodyIsolateGain.gain.value = 0
+      if (d.dryPath) d.dryPath.gain.value = 1
+    }
+    // Reset flanger
+    if (this.flangerWet) this.flangerWet.gain.value = 0
+    if (this.flangerDry) this.flangerDry.gain.value = 1
+
     this.transitionState = {
       ...this.transitionState,
       isActive: false,
@@ -838,6 +871,22 @@ export class MusicEngine {
     const deckATempoAuto = plan.deckATempoAutomation?.map((p) => ({ t: p.t, value: p.playbackRate }))
     const deckBTempoAuto = plan.deckBTempoAutomation?.map((p) => ({ t: p.t, value: p.playbackRate }))
 
+    // Stem isolation per deck
+    const deckAIsoBass = plan.deckAIsolationAutomation?.map((p) => ({ t: p.t, value: p.bass }))
+    const deckAIsoVoice = plan.deckAIsolationAutomation?.map((p) => ({ t: p.t, value: p.voice }))
+    const deckAIsoMelody = plan.deckAIsolationAutomation?.map((p) => ({ t: p.t, value: p.melody }))
+    const deckBIsoBass = plan.deckBIsolationAutomation?.map((p) => ({ t: p.t, value: p.bass }))
+    const deckBIsoVoice = plan.deckBIsolationAutomation?.map((p) => ({ t: p.t, value: p.voice }))
+    const deckBIsoMelody = plan.deckBIsolationAutomation?.map((p) => ({ t: p.t, value: p.melody }))
+
+    // Flanger from fxAutomation
+    const fxFlangerAuto = plan.fxAutomation
+      ?.filter((p) => p.flangerMix !== undefined)
+      .map((p) => ({ t: p.t, value: p.flangerMix! }))
+
+    // One-shot triggers — track which have fired
+    const pendingTriggers = new Set<number>(plan.triggers?.map((_, i) => i) ?? [])
+
     const initialCrossfader = this.interpolateAutomation(plan.crossfadeAutomation, 0)
     this.setCrossfade(initialCrossfader)
 
@@ -852,6 +901,9 @@ export class MusicEngine {
         filterQ: filterQAuto?.length ? this.interpolateAutomation(filterQAuto, 0) : 1,
         reverb: fxReverbAuto?.length ? this.interpolateAutomation(fxReverbAuto, 0) : 0,
         delay: fxDelayAuto?.length ? this.interpolateAutomation(fxDelayAuto, 0) : 0,
+        flangerMix: fxFlangerAuto?.length ? this.interpolateAutomation(fxFlangerAuto, 0) : 0,
+        deckAIsolation: { bass: 0, voice: 0, melody: 0 },
+        deckBIsolation: { bass: 0, voice: 0, melody: 0 },
       },
     }
     this.notifyTransitionCallbacks()
@@ -918,12 +970,99 @@ export class MusicEngine {
         }
       }
 
+      // Stem isolation per deck
+      let deckAIsoValues = { bass: 0, voice: 0, melody: 0 }
+      if (deckAIsoBass?.length) {
+        deckAIsoValues = {
+          bass: this.interpolateAutomation(deckAIsoBass, progress),
+          voice: this.interpolateAutomation(deckAIsoVoice!, progress),
+          melody: this.interpolateAutomation(deckAIsoMelody!, progress),
+        }
+        if (this.deckA.bassIsolateGain && isFinite(deckAIsoValues.bass))
+          this.deckA.bassIsolateGain.gain.value = deckAIsoValues.bass
+        if (this.deckA.voiceIsolateGain && isFinite(deckAIsoValues.voice))
+          this.deckA.voiceIsolateGain.gain.value = deckAIsoValues.voice
+        if (this.deckA.melodyIsolateGain && isFinite(deckAIsoValues.melody))
+          this.deckA.melodyIsolateGain.gain.value = deckAIsoValues.melody
+        const anyIsoA = deckAIsoValues.bass > 0 || deckAIsoValues.voice > 0 || deckAIsoValues.melody > 0
+        if (this.deckA.dryPath) this.deckA.dryPath.gain.value = anyIsoA ? 0 : 1
+      }
+      let deckBIsoValues = { bass: 0, voice: 0, melody: 0 }
+      if (deckBIsoBass?.length) {
+        deckBIsoValues = {
+          bass: this.interpolateAutomation(deckBIsoBass, progress),
+          voice: this.interpolateAutomation(deckBIsoVoice!, progress),
+          melody: this.interpolateAutomation(deckBIsoMelody!, progress),
+        }
+        if (this.deckB.bassIsolateGain && isFinite(deckBIsoValues.bass))
+          this.deckB.bassIsolateGain.gain.value = deckBIsoValues.bass
+        if (this.deckB.voiceIsolateGain && isFinite(deckBIsoValues.voice))
+          this.deckB.voiceIsolateGain.gain.value = deckBIsoValues.voice
+        if (this.deckB.melodyIsolateGain && isFinite(deckBIsoValues.melody))
+          this.deckB.melodyIsolateGain.gain.value = deckBIsoValues.melody
+        const anyIsoB = deckBIsoValues.bass > 0 || deckBIsoValues.voice > 0 || deckBIsoValues.melody > 0
+        if (this.deckB.dryPath) this.deckB.dryPath.gain.value = anyIsoB ? 0 : 1
+      }
+
+      // Flanger
+      let flangerMixValue = 0
+      if (fxFlangerAuto?.length) {
+        flangerMixValue = this.interpolateAutomation(fxFlangerAuto, progress)
+        if (this.flangerWet && isFinite(flangerMixValue)) {
+          this.flangerWet.gain.value = flangerMixValue
+          if (this.flangerDry) this.flangerDry.gain.value = 1 - flangerMixValue * 0.5
+        }
+      }
+
+      // One-shot triggers (vinyl brake, spinback)
+      if (plan.triggers && pendingTriggers.size > 0) {
+        for (const i of pendingTriggers) {
+          const trigger = plan.triggers[i]
+          if (progress >= trigger.t) {
+            const targetDeck = trigger.deck as "A" | "B"
+            if (trigger.type === "vinylBrake") {
+              this.vinylBrake(targetDeck, trigger.duration ?? 1.5)
+            } else if (trigger.type === "spinback") {
+              this.spinback(targetDeck, trigger.duration ?? 0.8)
+            }
+            pendingTriggers.delete(i)
+          }
+        }
+      }
+
       this.musicObject = {
         ...this.musicObject,
         crossfader: crossfadeValue,
         filter: { ...this.musicObject.filter, cutoff: filterCutoff, q: filterQ },
         reverbAmount: reverbValue,
         delayAmount: delayValue,
+        fx: { ...this.musicObject.fx, flangerMix: flangerMixValue },
+        tracks: {
+          A: this.musicObject.tracks.A ? {
+            ...this.musicObject.tracks.A,
+            bassIsolation: deckAIsoValues.bass,
+            voiceIsolation: deckAIsoValues.voice,
+            melodyIsolation: deckAIsoValues.melody,
+          } : null,
+          B: this.musicObject.tracks.B ? {
+            ...this.musicObject.tracks.B,
+            bassIsolation: deckBIsoValues.bass,
+            voiceIsolation: deckBIsoValues.voice,
+            melodyIsolation: deckBIsoValues.melody,
+          } : null,
+        },
+        perDeckEq: {
+          A: {
+            low: deckAEqLow?.length ? this.interpolateAutomation(deckAEqLow, progress) : (this.musicObject.perDeckEq?.A.low ?? 0),
+            mid: deckAEqMid?.length ? this.interpolateAutomation(deckAEqMid!, progress) : (this.musicObject.perDeckEq?.A.mid ?? 0),
+            high: deckAEqHigh?.length ? this.interpolateAutomation(deckAEqHigh!, progress) : (this.musicObject.perDeckEq?.A.high ?? 0),
+          },
+          B: {
+            low: deckBEqLow?.length ? this.interpolateAutomation(deckBEqLow, progress) : (this.musicObject.perDeckEq?.B.low ?? 0),
+            mid: deckBEqMid?.length ? this.interpolateAutomation(deckBEqMid!, progress) : (this.musicObject.perDeckEq?.B.mid ?? 0),
+            high: deckBEqHigh?.length ? this.interpolateAutomation(deckBEqHigh!, progress) : (this.musicObject.perDeckEq?.B.high ?? 0),
+          },
+        },
       }
 
       this.transitionState = {
@@ -931,7 +1070,16 @@ export class MusicEngine {
         progress,
         startTime,
         duration: plan.durationSeconds,
-        currentValues: { crossfader: crossfadeValue, filterCutoff, filterQ, reverb: reverbValue, delay: delayValue },
+        currentValues: {
+          crossfader: crossfadeValue,
+          filterCutoff,
+          filterQ,
+          reverb: reverbValue,
+          delay: delayValue,
+          flangerMix: flangerMixValue,
+          deckAIsolation: deckAIsoValues,
+          deckBIsolation: deckBIsoValues,
+        },
       }
       this.notifyTransitionCallbacks()
 

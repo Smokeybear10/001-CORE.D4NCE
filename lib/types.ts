@@ -104,7 +104,7 @@ export interface MusicObject {
   filter: FilterSettings
   fx: FXSettings
 
-  visualizerMode: "cymatic" | "particles" | "tunnel" | "waveform" | "spectrum" | "helix" | "grok"
+  visualizerMode: "cymatic" | "tunnel" | "waveform" | "spectrum" | "grok"
   visualSensitivity: number
   colorScheme: "cyberpunk" | "neon" | "monochrome" | "fire" | "aurora" | "sunset" | "ocean"
 }
@@ -120,7 +120,12 @@ export interface TransitionPlan {
   deckATempoAutomation?: { t: number; playbackRate: number }[]
   deckBTempoAutomation?: { t: number; playbackRate: number }[]
   filterAutomation?: { t: number; cutoff: number; q: number }[]
-  fxAutomation?: { t: number; reverb: number; delay: number }[]
+  fxAutomation?: { t: number; reverb: number; delay: number; flangerMix?: number }[]
+  // Stem isolation automation per deck (0=stem off, 1=stem active/audible)
+  deckAIsolationAutomation?: { t: number; bass: number; voice: number; melody: number }[]
+  deckBIsolationAutomation?: { t: number; bass: number; voice: number; melody: number }[]
+  // One-shot effects fired at specific transition points
+  triggers?: { t: number; type: "vinylBrake" | "spinback"; deck: "outgoing" | "incoming" | "A" | "B"; duration?: number }[]
   visualizerConfig?: Partial<MusicObject>
   explanation?: string
 }
