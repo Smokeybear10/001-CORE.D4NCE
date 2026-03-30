@@ -151,6 +151,17 @@ export default function DJSystem() {
 
       setTimeout(() => {
         const adjustedPlan = { ...plan }
+
+        // Resolve trigger deck references from outgoing/incoming to A/B
+        if (adjustedPlan.triggers) {
+          adjustedPlan.triggers = adjustedPlan.triggers.map(t => ({
+            ...t,
+            deck: t.deck === "outgoing" ? outgoingDeck
+              : t.deck === "incoming" ? incomingDeck
+              : t.deck,
+          }))
+        }
+
         if (outgoingDeck === "B") {
           adjustedPlan.crossfadeAutomation = plan.crossfadeAutomation.map(point => ({
             t: point.t, value: 1 - point.value,
@@ -159,6 +170,8 @@ export default function DJSystem() {
           adjustedPlan.deckBEqAutomation = plan.deckAEqAutomation
           adjustedPlan.deckATempoAutomation = plan.deckBTempoAutomation
           adjustedPlan.deckBTempoAutomation = plan.deckATempoAutomation
+          adjustedPlan.deckAIsolationAutomation = plan.deckBIsolationAutomation
+          adjustedPlan.deckBIsolationAutomation = plan.deckAIsolationAutomation
         }
 
         const currentPos = musicObject.crossfader

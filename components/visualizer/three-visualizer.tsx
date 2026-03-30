@@ -78,57 +78,6 @@ function spawnParticle(W: number, H: number, deck: "A" | "B"): Particle {
 
 // --- DRAW MODES ---
 
-function drawBars(
-  ctx: CanvasRenderingContext2D,
-  freq: Uint8Array,
-  W: number, H: number,
-  colA: number[], colB: number[], colC: number[],
-  sensitivity: number,
-  smoothed: Float32Array,
-  t: number,
-  crossfader: number
-) {
-  const count = 80
-  const gap = 2
-  const barW = (W - gap * (count + 1)) / count
-  const silent = freq.every(v => v < 2)
-
-  for (let i = 0; i < count; i++) {
-    const fi = Math.floor((i / count) * freq.length * 0.75)
-    const idleTarget = silent
-      ? (Math.sin(t * 0.8 + i * 0.25) * 0.5 + 0.5) * 0.06 + 0.01
-      : 0
-    const target = silent ? idleTarget : (freq[fi] ?? 0) / 255 * sensitivity
-    smoothed[i] = lerp(smoothed[i] ?? 0, target, silent ? 0.04 : 0.18)
-
-    const bh = smoothed[i] * H * 0.85
-    const x = gap + i * (barW + gap)
-    const y = H - bh
-
-    const barBlend = i / count
-    const localBlend = lerp(barBlend * 0.3, 1 - (1 - barBlend) * 0.3, crossfader)
-    const topCol = lerpColor(colA, colC, localBlend)
-    const midCol = lerpColor(colA, colB, localBlend)
-
-    const grad = ctx.createLinearGradient(x, y, x, H)
-    grad.addColorStop(0, `rgba(${rgbStr(topCol)},0.9)`)
-    grad.addColorStop(0.5, `rgba(${rgbStr(midCol)},0.6)`)
-    grad.addColorStop(1, `rgba(${rgbStr(midCol)},0.1)`)
-
-    ctx.fillStyle = grad
-    ctx.beginPath()
-    ctx.roundRect(x, y, barW, bh, 2)
-    ctx.fill()
-
-    const refGrad = ctx.createLinearGradient(x, H, x, H + bh * 0.25)
-    refGrad.addColorStop(0, `rgba(${rgbStr(topCol)},0.12)`)
-    refGrad.addColorStop(1, `rgba(${rgbStr(topCol)},0)`)
-    ctx.fillStyle = refGrad
-    ctx.beginPath()
-    ctx.roundRect(x, H, barW, bh * 0.25, 1)
-    ctx.fill()
-  }
-}
 
 function drawCircular(
   ctx: CanvasRenderingContext2D,
@@ -358,108 +307,6 @@ function drawSpectrum(
   })
 }
 
-// NEW: DNA Helix mode — double helix responding to audio
-function drawHelix(
-  ctx: CanvasRenderingContext2D,
-  freq: Uint8Array,
-  W: number, H: number,
-  colA: number[], colB: number[], colC: number[],
-  sensitivity: number,
-  smoothed: Float32Array,
-  t: number,
-  crossfader: number,
-  energy: number
-) {
-  const cx = W / 2
-  const cy = H / 2
-  const silent = freq.every(v => v < 2)
-  const points = 200
-  const helixLen = Math.max(W, H) * 0.7
-  const rotSpeed = silent ? 0.3 : 0.6 + energy * 0.8
-
-  // Background glow
-  const glowCol = lerpColor(colA, colC, crossfader)
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, helixLen * 0.5)
-  glow.addColorStop(0, `rgba(${rgbStr(glowCol)},0.05)`)
-  glow.addColorStop(1, `rgba(${rgbStr(glowCol)},0)`)
-  ctx.fillStyle = glow
-  ctx.fillRect(0, 0, W, H)
-
-  // Draw two interleaved helices
-  for (let strand = 0; strand < 2; strand++) {
-    const strandOffset = strand * Math.PI
-    const strandCol = strand === 0 ? colA : colC
-
-    ctx.beginPath()
-    ctx.lineWidth = 2
-    ctx.strokeStyle = `rgba(${rgbStr(strandCol)},0.6)`
-    ctx.lineJoin = "round"
-
-    for (let i = 0; i < points; i++) {
-      const p = i / points
-      const fi = Math.floor(p * freq.length * 0.5)
-      const audioVal = silent ? 0.1 : (freq[fi] ?? 0) / 255 * sensitivity
-
-      smoothed[strand * points + i] = lerp(
-        smoothed[strand * points + i] ?? 0,
-        audioVal,
-        silent ? 0.03 : 0.15
-      )
-
-      const audioDisplace = smoothed[strand * points + i] * 60
-
-      const angle = p * Math.PI * 6 + t * rotSpeed + strandOffset
-      const radius = 40 + audioDisplace + Math.sin(p * Math.PI) * 30
-      const perspective = 0.6 + 0.4 * Math.sin(angle)
-
-      const x = cx + (p - 0.5) * helixLen * 0.8
-      const y = cy + Math.sin(angle) * radius * perspective
-      const z = Math.cos(angle)
-
-      if (i === 0) {
-        ctx.moveTo(x, y)
-      } else {
-        ctx.lineTo(x, y)
-      }
-
-      // Draw rungs (bridges between strands) at intervals
-      if (strand === 0 && i % 8 === 0) {
-        const otherAngle = p * Math.PI * 6 + t * rotSpeed + Math.PI
-        const otherRadius = 40 + (smoothed[points + i] ?? 0) * 60 + Math.sin(p * Math.PI) * 30
-        const otherPerspective = 0.6 + 0.4 * Math.sin(otherAngle)
-        const otherY = cy + Math.sin(otherAngle) * otherRadius * otherPerspective
-
-        const rungCol = lerpColor(colA, colC, p)
-        const rungAlpha = (0.15 + audioVal * 0.3) * Math.abs(z)
-        ctx.save()
-        ctx.strokeStyle = `rgba(${rgbStr(rungCol)},${rungAlpha})`
-        ctx.lineWidth = 1 + audioVal * 2
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        ctx.lineTo(x, otherY)
-        ctx.stroke()
-        ctx.restore()
-      }
-    }
-    ctx.stroke()
-
-    // Glow pass
-    ctx.beginPath()
-    ctx.lineWidth = 6
-    ctx.strokeStyle = `rgba(${rgbStr(strandCol)},0.08)`
-    for (let i = 0; i < points; i++) {
-      const p = i / points
-      const angle = p * Math.PI * 6 + t * rotSpeed + strandOffset
-      const audioDisplace = (smoothed[strand * points + i] ?? 0) * 60
-      const radius = 40 + audioDisplace + Math.sin(p * Math.PI) * 30
-      const perspective = 0.6 + 0.4 * Math.sin(angle)
-      const x = cx + (p - 0.5) * helixLen * 0.8
-      const y = cy + Math.sin(angle) * radius * perspective
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-    }
-    ctx.stroke()
-  }
-}
 
 function updateAndDrawParticles(
   ctx: CanvasRenderingContext2D,
@@ -588,14 +435,10 @@ export function ThreeVisualizer({ analyserData, musicObject }: VisualizerProps) 
 
       if (visualizerMode === "waveform") {
         drawWave(ctx, timeDomain, frequency, W, H, colA, colB, colC, s, t, cf)
-      } else if (visualizerMode === "tunnel" || visualizerMode === "cymatic") {
-        drawCircular(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, t, cf)
       } else if (visualizerMode === "spectrum") {
         drawSpectrum(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, peakHoldRef.current, t, cf)
-      } else if (visualizerMode === "helix") {
-        drawHelix(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, t, cf, energyRef.current)
       } else {
-        drawBars(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, t, cf)
+        drawCircular(ctx, frequency, W, H, colA, colB, colC, s, smoothedRef.current, t, cf)
       }
 
       updateAndDrawParticles(ctx, particlesRef.current, colA, colC, cf, energyRef.current, W, H)

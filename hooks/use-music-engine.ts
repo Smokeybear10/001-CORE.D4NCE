@@ -18,6 +18,9 @@ const defaultTransitionState: TransitionState = {
     filterQ: 1,
     reverb: 0,
     delay: 0,
+    flangerMix: 0,
+    deckAIsolation: { bass: 0, voice: 0, melody: 0 },
+    deckBIsolation: { bass: 0, voice: 0, melody: 0 },
   },
 }
 
@@ -68,6 +71,24 @@ export function useMusicEngine() {
           filter: { ...prev.filter, cutoff: state.currentValues.filterCutoff },
           reverbAmount: state.currentValues.reverb,
           delayAmount: state.currentValues.delay,
+          fx: {
+            ...prev.fx,
+            flangerMix: state.currentValues.flangerMix,
+          },
+          tracks: {
+            A: prev.tracks.A ? {
+              ...prev.tracks.A,
+              bassIsolation: state.currentValues.deckAIsolation.bass,
+              voiceIsolation: state.currentValues.deckAIsolation.voice,
+              melodyIsolation: state.currentValues.deckAIsolation.melody,
+            } : null,
+            B: prev.tracks.B ? {
+              ...prev.tracks.B,
+              bassIsolation: state.currentValues.deckBIsolation.bass,
+              voiceIsolation: state.currentValues.deckBIsolation.voice,
+              melodyIsolation: state.currentValues.deckBIsolation.melody,
+            } : null,
+          },
         }))
       }
     })

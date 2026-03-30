@@ -89,11 +89,45 @@ const transitionPlanSchema = z.object({
         t: z.number().min(0).max(1),
         reverb: z.number().min(0).max(1).describe("Reverb for transitions/echoes"),
         delay: z.number().min(0).max(1).describe("Delay/echo effects for creative transitions"),
+        flangerMix: z.number().min(0).max(0.3).optional().describe("Flanger wet/dry mix (0=off, max 0.3). Use for filter_sweep, echo_out, build_up techniques"),
       }),
     )
     .min(2)
-    .describe("FX automation - use delay for echo-out effects, reverb for atmosphere"),
-  visualizerMode: z.enum(["cymatic", "particles", "tunnel", "waveform"]).optional(),
+    .describe("FX automation - use delay for echo-out effects, reverb for atmosphere, flanger for modulation texture"),
+  deckAIsolationAutomation: z
+    .array(
+      z.object({
+        t: z.number().min(0).max(1),
+        bass: z.number().min(0).max(1).describe("Bass stem (0=muted, 1=full). Preferred over EQ low for clean bass swaps"),
+        voice: z.number().min(0).max(1).describe("Vocal stem (0=muted, 1=full). Mute to avoid vocal clashes"),
+        melody: z.number().min(0).max(1).describe("Melody/synth stem (0=muted, 1=full)"),
+      }),
+    )
+    .optional()
+    .describe("Stem isolation for Deck A. WARNING: Do NOT combine with deckAEqAutomation low cuts — causes double-cutting artifacts"),
+  deckBIsolationAutomation: z
+    .array(
+      z.object({
+        t: z.number().min(0).max(1),
+        bass: z.number().min(0).max(1),
+        voice: z.number().min(0).max(1),
+        melody: z.number().min(0).max(1),
+      }),
+    )
+    .optional()
+    .describe("Stem isolation for Deck B. WARNING: Do NOT combine with deckBEqAutomation low cuts — causes double-cutting artifacts"),
+  triggers: z
+    .array(
+      z.object({
+        t: z.number().min(0).max(1).describe("Progress point to fire (0-1)"),
+        type: z.enum(["vinylBrake", "spinback"]).describe("vinylBrake: slow-stop effect. spinback: reverse scratch"),
+        deck: z.enum(["outgoing", "incoming"]).describe("Which deck to apply the effect to"),
+        duration: z.number().min(0.2).max(3).optional().describe("Effect duration in seconds (default ~1s)"),
+      }),
+    )
+    .optional()
+    .describe("One-shot effects fired at specific transition points. Use vinylBrake only for quick_cut/energy_drop on outgoing deck"),
+  visualizerMode: z.enum(["cymatic", "tunnel", "waveform", "spectrum"]).optional(),
   phaseAlignment: z
     .enum(["phrase_start", "drop", "breakdown", "buildup", "outro"])
     .describe("Where in the phrase structure to start the transition"),
@@ -220,7 +254,31 @@ CRITICAL DJ REQUIREMENTS:
    - Use reverb sparingly for atmosphere during breakdowns
    - Consider visualizer mode changes at key moments
 
-6. ⏳ DURATION:
+6. 🎛️ STEM ISOLATION (ADVANCED — preferred over EQ for clean separation):
+   - Each deck has bass, voice, melody stems (0=muted, 1=full)
+   - STEM BASS SWAP: Instead of EQ low cuts, mute bass stem on incoming deck, then swap:
+     * t=0.0: Deck A bass=1, Deck B bass=0  (only A bass audible)
+     * t=0.4: Deck A bass=1, Deck B bass=0  (wait for phrase boundary)
+     * t=0.5: Deck A bass=0, Deck B bass=1  (instant clean swap at the drop/phrase)
+     * t=1.0: Deck A bass=0, Deck B bass=1
+   - VOCAL CLASH AVOIDANCE: If both tracks have vocals, mute voice on outgoing during overlap:
+     * t=0.3: Deck A voice=0.5 (duck outgoing vocals as B comes in)
+     * t=0.6: Deck A voice=0   (fully mute outgoing vocals)
+   - ⚠️ NEVER combine stem isolation bass with EQ low cuts on the SAME deck — causes double-cutting
+
+7. 🌀 FLANGER MODULATION:
+   - Use flangerMix in fxAutomation (0=off, max 0.3)
+   - Best for: filter_sweep, echo_out, build_up techniques
+   - Ramp: 0→0.2 from t=0.2-0.5, hold, back to 0 by t=0.9
+   - Adds swirling texture during blends — don't overuse
+
+8. 💥 ONE-SHOT TRIGGERS:
+   - vinylBrake: Slow-stop effect on outgoing deck. Only for quick_cut or energy_drop
+   - spinback: Reverse scratch. Dramatic effect for hard transitions
+   - Fire at t=0.8-0.95 on the outgoing deck for maximum impact
+   - Use sparingly — one trigger per transition maximum
+
+9. ⏳ DURATION:
    - Quick transitions: 16-24 seconds (fast energy maintenance)
    - Standard: 24-48 seconds (most common)
    - Long blends: 48-90 seconds (atmospheric, progressive)
@@ -282,6 +340,24 @@ RULES:
 5. Create SMOOTH automation curves (at least 4-6 points per parameter)
 6. Match technique to the energy difference and genres
 7. Be CREATIVE with filters and FX
+
+STEM ISOLATION vs EQ RULES:
+8. NEVER use stem isolation bass + EQ low cuts on the same deck simultaneously — this double-cuts and sounds hollow
+9. If using deckAIsolationAutomation, keep deckAEqAutomation low at 0 (neutral). Pick ONE approach per deck.
+10. Prefer stem isolation for bass swaps (cleaner separation) and EQ for subtle tonal shaping
+11. Vocal isolation is great for avoiding clashes — mute outgoing vocals when incoming vocals are prominent
+
+TRIGGER RULES:
+12. vinylBrake ONLY for quick_cut or energy_drop techniques, on the OUTGOING deck
+13. spinback ONLY for dramatic hard cuts, on the OUTGOING deck
+14. Maximum ONE trigger per transition
+15. Fire triggers at t=0.8-0.95 (near the end of the transition)
+
+FLANGER RULES:
+16. flangerMix max 0.3 — subtle modulation texture only
+17. Best paired with filter_sweep, echo_out, or build_up techniques
+18. Ramp up gradually, always return to 0 before transition ends
+19. Do NOT use flanger for quick_cut transitions
 
 HARMONIC MIXING RULES:
 - If harmonic compatibility is PERFECT/GOOD (≥70%): use long blends, EQ blends, bass swaps — the keys will sound great together
