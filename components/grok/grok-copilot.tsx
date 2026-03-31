@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { Track, MusicObject, TransitionPlan, Preset, TrackRecommendation } from "@/lib/types"
+import type { SongStructure } from "@/lib/song-structure"
 import type { TransitionState } from "@/lib/music-engine"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,6 +28,8 @@ interface GrokCopilotProps {
   durationB?: number
   isPlayingA?: boolean
   isPlayingB?: boolean
+  structureA?: SongStructure | null
+  structureB?: SongStructure | null
   getAudioContext?: () => {
     summary?: string
     energyPhase?: string
@@ -60,6 +63,8 @@ export function GrokCopilot({
   durationB,
   isPlayingA,
   isPlayingB,
+  structureA,
+  structureB,
   getAudioContext,
 }: GrokCopilotProps) {
   const [transitionPrompt, setTransitionPrompt] = useState("")
@@ -101,6 +106,8 @@ export function GrokCopilot({
         : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
         : "A"
 
+      const outStructure = outgoingDeck === "A" ? structureA : structureB
+      const inStructure = outgoingDeck === "A" ? structureB : structureA
       const response = await fetch("/api/grok/transition", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,6 +122,8 @@ export function GrokCopilot({
           durationB,
           outgoingDeck,
           audioContext: getAudioContext?.(),
+          outgoingStructure: outStructure ?? undefined,
+          incomingStructure: inStructure ?? undefined,
         }),
       })
 

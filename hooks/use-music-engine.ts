@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { getMusicEngine, type MusicEngine, type TransitionState } from "@/lib/music-engine"
 import { type MusicObject, type TransitionPlan, type CuePoint, type LoopRegion, type WaveformPeak, defaultMusicObject, getCamelotCompatibility } from "@/lib/types"
 import type { KeyResult } from "@/lib/key-detector"
+import type { SongStructure } from "@/lib/song-structure"
 import { AudioContextBuffer } from "@/lib/audio-context-buffer"
 import { analyzeFrequencyData } from "@/lib/audio-analyzer"
 
@@ -48,6 +49,8 @@ export function useMusicEngine() {
   const [cuePointsB, setCuePointsB] = useState<CuePoint[]>([])
   const [loopA, setLoopA] = useState<LoopRegion | null>(null)
   const [loopB, setLoopB] = useState<LoopRegion | null>(null)
+  const [structureA, setStructureA] = useState<SongStructure | null>(null)
+  const [structureB, setStructureB] = useState<SongStructure | null>(null)
 
   const engineRef = useRef<MusicEngine | null>(null)
   const animationRef = useRef<number | null>(null)
@@ -153,15 +156,17 @@ export function useMusicEngine() {
         setDurationB(engineRef.current.getDuration("B"))
       }
 
-      // Poll for analysis results (BPM, key, waveform)
+      // Poll for analysis results (BPM, key, waveform, structure)
       const setKey = deck === "A" ? setKeyA : setKeyB
       const setWaveform = deck === "A" ? setWaveformPeaksA : setWaveformPeaksB
+      const setStructure = deck === "A" ? setStructureA : setStructureB
       const setCues = deck === "A" ? setCuePointsA : setCuePointsB
       const setLoop = deck === "A" ? setLoopA : setLoopB
 
       // Reset deck state
       setCues([])
       setLoop(null)
+      setStructure(null)
 
       let attempts = 0
       const interval = setInterval(() => {
@@ -169,11 +174,13 @@ export function useMusicEngine() {
 
         const key = engineRef.current.getKey(deck)
         const peaks = engineRef.current.getWaveformPeaks(deck)
+        const structure = engineRef.current.getSongStructure(deck)
 
         if (key) setKey(key)
         if (peaks) setWaveform(peaks)
+        if (structure) setStructure(structure)
 
-        if ((key && peaks) || attempts >= 40) {
+        if ((key && peaks && structure) || attempts >= 40) {
           clearInterval(interval)
         }
         attempts++
@@ -315,6 +322,8 @@ export function useMusicEngine() {
     keyCompatibility,
     waveformPeaksA,
     waveformPeaksB,
+    structureA,
+    structureB,
     cuePointsA,
     cuePointsB,
     loopA,

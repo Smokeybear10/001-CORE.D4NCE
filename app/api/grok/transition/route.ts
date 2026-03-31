@@ -1,17 +1,16 @@
 import { generateObject } from "ai"
-import { xai } from "@ai-sdk/xai"
 import { type NextRequest, NextResponse } from "next/server"
+import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import type { Track, MusicObject } from "@/lib/types"
 import { getCamelotCompatibility, CAMELOT_WHEEL } from "@/lib/types"
+import { structureToPromptText, findNextExitPoint, findBestEntryPoint, type SongStructure } from "@/lib/song-structure"
 
 const transitionPlanSchema = z.object({
   startDelay: z
     .number()
-    .min(0)
-    .max(60)
-    .describe("Seconds to wait before starting transition (to align with phrase boundaries or avoid bad timing)"),
-  durationSeconds: z.number().min(8).max(120).describe("Duration of the transition in seconds (typically 16-32 bars)"),
+    .describe("Seconds to WAIT before starting (0-30). Use the song structure analysis to align with the next phrase boundary. Prefer 0 unless we're mid-drop or mid-buildup. Keep it short — the user expects action."),
+  durationSeconds: z.number().describe("Duration in seconds. Quick cuts: 4-8s. Standard: 12-24s. Long blends: 32-64s. Match the energy — don't drag it out."),
   technique: z
     .enum([
       "bass_swap",
@@ -27,39 +26,36 @@ const transitionPlanSchema = z.object({
   crossfadeAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1).describe("Time position (0-1)"),
-        value: z.number().min(0).max(1).describe("Crossfader position (0=A, 1=B)"),
+        t: z.number().describe("Time position (0-1)"),
+        value: z.number().describe("Crossfader position (0=A, 1=B)"),
       }),
     )
-    .min(6)
     .describe("Smooth crossfader curve. 6-8 points. Start at 0.0, end at 1.0. Shape it to the music."),
   deckAEqAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        low: z.number().min(-12).max(12).describe("Bass/sub frequencies"),
-        mid: z.number().min(-12).max(12).describe("Vocal/melody frequencies"),
-        high: z.number().min(-12).max(12).describe("Treble/hi-hats"),
+        t: z.number().describe("Time position (0-1)"),
+        low: z.number().describe("Bass/sub frequencies (-12 to 12 dB)"),
+        mid: z.number().describe("Vocal/melody frequencies (-12 to 12 dB)"),
+        high: z.number().describe("Treble/hi-hats (-12 to 12 dB)"),
       }),
     )
-    .min(4)
     .describe("REQUIRED. EQ sculpting for outgoing deck A. 5-8 points. Actively shape each band — cut bass, duck mids, reduce highs as track exits."),
   deckBEqAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        low: z.number().min(-12).max(12),
-        mid: z.number().min(-12).max(12),
-        high: z.number().min(-12).max(12),
+        t: z.number().describe("Time position (0-1)"),
+        low: z.number().describe("Bass/sub (-12 to 12 dB)"),
+        mid: z.number().describe("Vocal/melody (-12 to 12 dB)"),
+        high: z.number().describe("Treble (-12 to 12 dB)"),
       }),
     )
-    .min(4)
     .describe("REQUIRED. EQ sculpting for incoming deck B. 5-8 points. Start with bass at -12dB, gradually open each band independently."),
   deckATempoAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        playbackRate: z.number().min(0.95).max(1.05).describe("Subtle tempo adjust for beatmatching (±5%)"),
+        t: z.number().describe("Time position (0-1)"),
+        playbackRate: z.number().describe("Subtle tempo adjust for beatmatching, 0.95-1.05 (±5%)"),
       }),
     )
     .optional()
@@ -67,8 +63,8 @@ const transitionPlanSchema = z.object({
   deckBTempoAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        playbackRate: z.number().min(0.95).max(1.05).describe("Subtle tempo adjust for beatmatching (±5%)"),
+        t: z.number().describe("Time position (0-1)"),
+        playbackRate: z.number().describe("Subtle tempo adjust for beatmatching, 0.95-1.05 (±5%)"),
       }),
     )
     .optional()
@@ -76,57 +72,56 @@ const transitionPlanSchema = z.object({
   filterAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        cutoff: z.number().min(20).max(20000),
-        q: z.number().min(0.1).max(20),
+        t: z.number().describe("Time position (0-1)"),
+        cutoff: z.number().describe("Filter cutoff frequency (20-20000 Hz)"),
+        q: z.number().describe("Filter resonance Q (0.1-20)"),
       }),
     )
-    .min(3)
     .describe("REQUIRED. Filter sweep automation. 3-5 points. Don't leave flat — sweep it for texture/tension. Use Q resonance (2-8) at peaks."),
   fxAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        reverb: z.number().min(0).max(1).describe("Reverb — peak 0.2-0.5 during blend midpoint"),
-        delay: z.number().min(0).max(1).describe("Delay/echo — peak 0.1-0.4 for echo trails"),
-        flangerMix: z.number().min(0).max(0.3).optional().describe("Flanger — subtle texture, 0.05-0.15 during sweeps"),
+        t: z.number().describe("Time position (0-1)"),
+        reverb: z.number().describe("Reverb amount 0-1 — peak 0.2-0.5 during blend midpoint"),
+        delay: z.number().describe("Delay/echo amount 0-1 — peak 0.1-0.4 for echo trails"),
+        flangerMix: z.number().optional().describe("Flanger amount 0-0.3 — subtle texture, 0.05-0.15 during sweeps"),
       }),
     )
-    .min(4)
     .describe("REQUIRED. FX arc — ramp up reverb+delay during blend, peak at midpoint, resolve to 0 at end. 4-6 points."),
   deckAIsolationAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        bass: z.number().min(0).max(1).describe("Bass stem (0=muted, 1=full). Preferred over EQ low for clean bass swaps"),
-        voice: z.number().min(0).max(1).describe("Vocal stem (0=muted, 1=full). Mute to avoid vocal clashes"),
-        melody: z.number().min(0).max(1).describe("Melody/synth stem (0=muted, 1=full)"),
+        t: z.number().describe("Time position (0-1)"),
+        bass: z.number().describe("Bass stem 0-1 (0=muted, 1=full). Preferred over EQ low for clean bass swaps"),
+        voice: z.number().describe("Vocal stem 0-1 (0=muted, 1=full). Mute to avoid vocal clashes"),
+        melody: z.number().describe("Melody/synth stem 0-1 (0=muted, 1=full)"),
       }),
     )
-    .min(3)
     .describe("REQUIRED. Stem isolation for outgoing Deck A — gradually remove stems. Start at 1,1,1 and end at 0,0,0. If using stem bass, keep EQ low at 0."),
   deckBIsolationAutomation: z
     .array(
       z.object({
-        t: z.number().min(0).max(1),
-        bass: z.number().min(0).max(1),
-        voice: z.number().min(0).max(1),
-        melody: z.number().min(0).max(1),
+        t: z.number().describe("Time position (0-1)"),
+        bass: z.number().describe("Bass stem 0-1 (0=muted, 1=full)"),
+        voice: z.number().describe("Vocal stem 0-1 (0=muted, 1=full)"),
+        melody: z.number().describe("Melody/synth stem 0-1 (0=muted, 1=full)"),
       }),
     )
-    .min(3)
     .describe("REQUIRED. Stem isolation for incoming Deck B — gradually introduce stems. Start at 0,0,0 and end at 1,1,1. If using stem bass, keep EQ low at 0."),
   triggers: z
     .array(
       z.object({
-        t: z.number().min(0).max(1).describe("Progress point to fire (0-1)"),
+        t: z.number().describe("Progress point to fire (0-1)"),
         type: z.enum(["vinylBrake", "spinback"]).describe("vinylBrake: slow-stop effect. spinback: reverse scratch"),
         deck: z.enum(["outgoing", "incoming"]).describe("Which deck to apply the effect to"),
-        duration: z.number().min(0.2).max(3).optional().describe("Effect duration in seconds (default ~1s)"),
+        duration: z.number().optional().describe("Effect duration in seconds 0.2-3 (default ~1s)"),
       }),
     )
     .optional()
     .describe("One-shot effects fired at specific transition points. Use vinylBrake only for quick_cut/energy_drop on outgoing deck"),
+  incomingStartSeconds: z
+    .number()
+    .describe("REQUIRED. Seconds into the incoming track to start playback (0 or more). Use the incoming song structure analysis to skip past intros. Set to 0 only if the intro is short (<16 bars) or you want the intro to blend under the outgoing track."),
   visualizerMode: z.enum(["cymatic", "tunnel", "waveform", "spectrum"]).optional(),
   phaseAlignment: z
     .enum(["phrase_start", "drop", "breakdown", "buildup", "outro"])
@@ -135,7 +130,9 @@ const transitionPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { trackA, trackB, currentMusicObject, userPrompt, audioContext: audioCtx, currentTimeA, durationA, currentTimeB, durationB, outgoingDeck } = (await request.json()) as {
+    const body = await request.json()
+    const modelOverride = body.model as string | undefined
+    const { trackA, trackB, currentMusicObject, userPrompt, audioContext: audioCtx, currentTimeA, durationA, currentTimeB, durationB, outgoingDeck, outgoingStructure, incomingStructure } = body as {
       trackA: Track
       trackB: Track
       currentMusicObject: MusicObject
@@ -145,6 +142,8 @@ export async function POST(request: NextRequest) {
       currentTimeB?: number
       durationB?: number
       outgoingDeck?: "A" | "B"
+      outgoingStructure?: SongStructure
+      incomingStructure?: SongStructure
       audioContext?: {
         summary?: string
         energyPhase?: string
@@ -185,7 +184,7 @@ export async function POST(request: NextRequest) {
     const camelotBInfo = camelotB ? CAMELOT_WHEEL[camelotB] : null
 
     const { object: plan } = await generateObject({
-      model: xai("grok-3"),
+      model: getAIModel(modelOverride),
       schema: transitionPlanSchema,
       prompt: `You are DJing a set. Analyze these tracks and create a PROFESSIONAL transition plan using ADVANCED DJ TECHNIQUES.
 
@@ -229,33 +228,58 @@ ${harmonicScore !== null && harmonicScore < 0.5 ? "⚠ HARMONIC CLASH — use fi
 ${harmonicScore !== null && harmonicScore >= 0.85 ? "✓ Keys are harmonically compatible — long blend or EQ blend will sound great." : ""}
 
 ═══════════════════════════════════════════════════════════════
-SONG STRUCTURE AWARENESS:
+SONG STRUCTURE AWARENESS (analyzed from audio):
 ═══════════════════════════════════════════════════════════════
-${outgoingTime !== undefined && outgoingDuration ? (() => {
-  const pct = outgoingTime / outgoingDuration
-  const remaining = outgoingDuration - outgoingTime
-  const estimatedBars = Math.round(remaining / (60 / bpmOut) / 4)
-  let section = "middle"
-  if (pct < 0.1) section = "intro"
-  else if (pct < 0.3) section = "early section (likely first verse/buildup)"
-  else if (pct < 0.5) section = "mid section (likely chorus/drop zone)"
-  else if (pct < 0.75) section = "late section (second half, possibly breakdown/bridge)"
-  else if (pct < 0.9) section = "near end (outro approaching)"
-  else section = "outro"
-  return `Outgoing track estimated section: ${section}
-Estimated bars remaining: ~${estimatedBars} bars at ${bpmOut} BPM
-${remaining < 30 ? "⚠ URGENT: Less than 30 seconds left — use a shorter transition!" : ""}
-${remaining < 60 ? "⚡ Under 1 minute remaining — keep transition duration under " + Math.floor(remaining * 0.7) + "s" : ""}`
-})() : "Outgoing track position: Unknown — use a standard transition length"}
+${(() => {
+  const lines: string[] = []
+  const remaining = outgoingTime !== undefined && outgoingDuration ? outgoingDuration - outgoingTime : null
+
+  // OUTGOING track structure
+  if (outgoingStructure) {
+    lines.push(structureToPromptText(outgoingStructure, "OUTGOING", outgoingTime, outgoingDuration))
+    if (outgoingTime !== undefined) {
+      const exit = findNextExitPoint(outgoingStructure, outgoingTime)
+      lines.push(`\n  >>> RECOMMENDED: Wait ${exit.delay.toFixed(0)}s (startDelay=${exit.delay.toFixed(0)}) — ${exit.reason}`)
+    }
+  } else if (outgoingTime !== undefined && outgoingDuration) {
+    const pct = outgoingTime / outgoingDuration
+    const estimatedBars = Math.round((outgoingDuration - outgoingTime) / (60 / bpmOut) / 4)
+    let section = "middle"
+    if (pct < 0.1) section = "intro"
+    else if (pct < 0.3) section = "early section (verse/buildup)"
+    else if (pct < 0.5) section = "mid section (chorus/drop zone)"
+    else if (pct < 0.75) section = "late section (breakdown/bridge)"
+    else if (pct < 0.9) section = "near end (outro approaching)"
+    else section = "outro"
+    lines.push(`  OUTGOING estimated section: ${section}, ~${estimatedBars} bars remaining (no structure analysis available)`)
+  }
+
+  // INCOMING track structure
+  if (incomingStructure) {
+    lines.push("")
+    lines.push(structureToPromptText(incomingStructure, "INCOMING", incomingTime, incomingDuration))
+    const entry = findBestEntryPoint(incomingStructure)
+    lines.push(`\n  >>> RECOMMENDED ENTRY POINT: ${entry.time.toFixed(1)}s — ${entry.reason}`)
+    lines.push(`  Set incomingStartSeconds=${entry.time.toFixed(1)} to cue the incoming track here.`)
+  }
+
+  if (remaining !== null) {
+    if (remaining < 30) lines.push("\n  ⚠ URGENT: Less than 30 seconds left on outgoing — use a shorter transition!")
+    else if (remaining < 60) lines.push(`\n  ⚡ Under 1 minute remaining — keep transition duration under ${Math.floor(remaining * 0.7)}s`)
+  }
+
+  return lines.join("\n")
+})()}
 
 STRUCTURE RULES:
 - Most songs follow: Intro → Verse → Buildup → Drop/Chorus → Breakdown → Drop2 → Outro
 - Phrases are typically 8 or 16 bars (${(60 / bpmOut * 4 * 8).toFixed(0)}s for 8 bars, ${(60 / bpmOut * 4 * 16).toFixed(0)}s for 16 bars at ${bpmOut} BPM)
-- START transitions at phrase boundaries (after a drop, during a breakdown, or at the outro)
+- Use the song structure analysis above to find the EXACT right moment
+- Set startDelay to wait for the next phrase boundary / breakdown / outro
+- Set incomingStartSeconds to skip the incoming track's intro if it's long
 - NEVER start during a buildup — it kills the energy
-- If the outgoing track is near its outro, you can use a longer blend
-- If the outgoing track is at a drop/chorus, wait for it to resolve before transitioning
-- Use the energy levels to infer structure: low energy = intro/breakdown, high = drop/chorus
+- If the outgoing track is at a drop, wait for it to resolve (the analysis shows you when)
+- If the outgoing track is in a breakdown or outro, start transitioning NOW
 
 ═══════════════════════════════════════════════════════════════
 CURRENT MIXER STATE:
@@ -337,40 +361,52 @@ TOOL 7 — TRIGGERS (one-shot effects):
   - Only use when the technique calls for it. One per transition max.
 
 ═══════════════════════════════════════════════════════════════
-TIMING — READ THE SONG:
+TIMING — USE THE SONG STRUCTURE:
 ═══════════════════════════════════════════════════════════════
-Look at the outgoing track's playback position and energy to determine WHERE in the song we are:
-- 0-10%: Intro — good time to start blending if short transition
-- 10-30%: Verse/buildup — wait for the phrase boundary, don't interrupt
-- 30-50%: Chorus/drop zone — let the drop hit, then start transitioning after
-- 50-75%: Second half — breakdown/bridge area, IDEAL for starting transitions
-- 75-90%: Approaching outro — start transitioning NOW, this is prime time
-- 90%+: Outro — you're running out of time, use a faster technique
+The song structure analysis above gives you EXACT sections and phrase boundaries.
+Use this data to make intelligent timing decisions:
 
-Set startDelay (0-60s) to wait for the next phrase boundary. Phrases are typically:
-- 8 bars = ${(60 / bpmOut * 4 * 8).toFixed(0)}s at ${bpmOut} BPM
-- 16 bars = ${(60 / bpmOut * 4 * 16).toFixed(0)}s at ${bpmOut} BPM
+startDelay (0-30s): How long to WAIT before beginning the transition.
+  - If we're in a drop → wait a few seconds for it to resolve, but don't wait forever
+  - If we're in a buildup → wait for the drop to hit, then start
+  - If we're in a breakdown or outro → start immediately (delay=0)
+  - PREFER SMALL DELAYS (0-10s). Only use 10-30s if we're truly stuck in a buildup.
+  - The analysis above includes a RECOMMENDED startDelay — use it but round DOWN, not up.
+
+incomingStartSeconds: Where to CUE the incoming track.
+  - Skip long intros — jump to the first verse/buildup
+  - The analysis above includes a RECOMMENDED entry point — use it.
+  - If the incoming song has no structure data, start from 0.
+  - IMPORTANT: The incoming track starts playing IMMEDIATELY (silently behind the crossfader).
+    It plays for startDelay seconds before the blend begins. Account for this:
+    If you want the blend to catch the incoming track at a chorus that's at 30s,
+    and startDelay=10s, set incomingStartSeconds=20 (30-10=20).
+
+Phrases are ${(60 / bpmOut * 4 * 8).toFixed(0)}s (8 bars) or ${(60 / bpmOut * 4 * 16).toFixed(0)}s (16 bars) at ${bpmOut} BPM.
+Align your transition duration to phrase multiples for professional results.
 
 ═══════════════════════════════════════════════════════════════
 TECHNIQUE DECISION TREE:
 ═══════════════════════════════════════════════════════════════
-Choose based on the tracks:
+Choose based on the tracks — KEEP IT TIGHT, don't drag transitions out:
 
-Same genre + similar BPM + compatible keys → bass_swap or eq_blend (24-48s)
+Same genre + similar BPM + compatible keys → bass_swap or eq_blend (12-24s)
   Use: Heavy EQ work, stem isolation, subtle FX. This should sound seamless.
 
-Same genre + similar BPM + clashing keys → filter_sweep or echo_out (16-32s)
+Same genre + similar BPM + clashing keys → filter_sweep or echo_out (8-16s)
   Use: Aggressive filter sweep to mask the key clash. Heavy reverb/delay on outgoing.
 
-Different energy levels → energy_drop or build_up (24-48s)
+Different energy levels → energy_drop or build_up (12-24s)
   Use: If going UP: build_up with filter sweep + reverb into the drop.
         If going DOWN: energy_drop, cut bass, filter down, let incoming breathe.
 
-Very different BPMs (>8 diff) → quick_cut or echo_out (8-24s)
+Very different BPMs (>8 diff) → quick_cut or echo_out (4-12s)
   Use: Don't try to beatmatch, just do a clean handoff. Echo/reverb on outgoing.
 
-Similar vibe/genre → long_blend (48-90s)
+Similar vibe/genre → long_blend (24-48s)
   Use: Gradual everything. Slow EQ sculpting, stem blending, gentle filter movement.
+
+DEFAULT TO SHORTER. A tight 12s transition sounds more professional than a drawn-out 48s one.
 
 ═══════════════════════════════════════════════════════════════
 FULL EXAMPLE — PROFESSIONAL bass_swap TRANSITION (32s):
@@ -427,9 +463,11 @@ THIS is what a real transition looks like. Every tool working together.
 DO NOT generate a transition with flat/empty EQ, empty isolation, or zero FX.
 
 Generate an aggressive, professional transition that sounds like a world-class DJ mixed it.`,
-      system: `You are a WORLD-CLASS DJ performing at a major festival. You are known for your flawless transitions.
+      system: `You are a WORLD-CLASS DJ performing at a major festival. You are known for your flawless, TIGHT transitions.
 
-Your philosophy: A transition should be an EVENT, not just a crossfade. Every transition uses ALL available tools — EQ sculpting, stem isolation, filter sweeps, FX — layered together to create a seamless blend that the crowd barely notices but would definitely notice if done badly.
+Your philosophy: A transition should be SEAMLESS and FAST. The best transitions are ones the crowd doesn't even notice happened. Use ALL tools aggressively but keep durations SHORT — 12-24s is the sweet spot for most transitions. Only go longer (32-48s) for deliberate long blends between similar tracks. Quick cuts should be 4-8s.
+
+SPEED IS KEY: Don't pad transitions. A tight 12-second bass swap with aggressive EQ/ISO work sounds 10x better than a lazy 48-second linear fade. Be decisive.
 
 HARD RULES (violations = amateur hour):
 1. crossfadeAutomation: 6-8 points minimum. Smooth S-curve, not linear.
@@ -442,6 +480,9 @@ HARD RULES (violations = amateur hour):
 8. fxAutomation: 4-6 points. Create an FX arc — ramp up during blend, back to 0 at end.
 9. Reverb should peak at 0.2-0.5 during the blend midpoint. Delay at 0.1-0.4.
 10. Tempo automation if BPMs differ by >3.
+11. incomingStartSeconds: ALWAYS SET THIS. Use the incoming song structure to skip past the intro.
+    If structure says bestEntryPoint=25s, set incomingStartSeconds=25 (minus startDelay if applicable).
+    NEVER leave it at 0 if the incoming track has a long intro — the listener will hear dead air.
 
 STEM ISOLATION STRATEGY:
 - Start incoming deck with all stems at 0 or very low
@@ -469,13 +510,15 @@ FX STRATEGY:
 - Texture: Flanger 0.05-0.15 during filter sweeps for movement
 - FX should ARC: build up → peak → resolve. Never flat.
 
-TIMING INTELLIGENCE:
-- Read the playback position carefully. If the outgoing track is:
-  * Near a drop/chorus: Wait for it to resolve (set startDelay)
-  * In a breakdown: Perfect — start transitioning now
-  * In the outro: Start immediately, match the transition to remaining time
-  * Early in the song: Set a longer startDelay to wait for a good exit point
-- The transition duration should NEVER exceed the remaining time on the outgoing track
+TIMING INTELLIGENCE (YOU HAVE REAL SONG STRUCTURE DATA — USE IT):
+- The prompt includes ANALYZED song structure with exact sections, phrase boundaries, and recommended timing.
+- Use startDelay to wait for the RIGHT MOMENT. The analysis gives you the optimal delay.
+- Use incomingStartSeconds to skip the incoming track's intro if it's long.
+- If the outgoing is in a drop: Wait for it to resolve (set startDelay per the recommendation).
+- If the outgoing is in a breakdown/outro: Start now (startDelay=0).
+- If the outgoing is in a buildup: NEVER interrupt — wait until after the drop.
+- The transition duration should NEVER exceed the remaining time on the outgoing track.
+- A professional DJ waits for the RIGHT MOMENT, even if that means a 20-30s startDelay.
 
 HARMONIC RULES:
 - Compatible keys (≥70%): Go wild with long blends and open EQ

@@ -1,6 +1,6 @@
 import { generateObject } from "ai"
-import { xai } from "@ai-sdk/xai"
 import { type NextRequest, NextResponse } from "next/server"
+import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import type { Track } from "@/lib/types"
 import { scoreLibrary } from "@/lib/track-scorer"
@@ -10,7 +10,7 @@ const recommendationSchema = z.object({
     z.object({
       trackId: z.string().describe("ID of the recommended track"),
       reason: z.string().describe("Why this track is recommended"),
-      compatibilityScore: z.number().min(0).max(1).describe("How well it matches"),
+      compatibilityScore: z.number().describe("How well it matches (0-1)"),
       suggestedTransition: z.string().describe("Suggested transition style"),
     }),
   ),
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       .join("\n")
 
     const { object: recommendations } = await generateObject({
-      model: xai("grok-3"),
+      model: getAIModel(),
       schema: recommendationSchema,
       prompt: `Recommend the next tracks to play after this current track:
 

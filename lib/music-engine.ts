@@ -4,6 +4,7 @@ import { defaultMusicObject } from "./types"
 import { BPMDetector } from "./bpm-detector"
 import { KeyDetector, type KeyResult } from "./key-detector"
 import { generateWaveformPeaks } from "./waveform-generator"
+import { analyzeSongStructure, type SongStructure } from "./song-structure"
 
 export interface TransitionState {
   isActive: boolean
@@ -42,6 +43,7 @@ interface DeckState {
   detectedBPM: number | null
   detectedKey: KeyResult | null
   waveformPeaks: WaveformPeak[] | null
+  songStructure: SongStructure | null
   cuePoints: CuePoint[]
   loop: LoopRegion | null
   isPlaying: boolean
@@ -68,6 +70,7 @@ function createDeckState(): DeckState {
     detectedBPM: null,
     detectedKey: null,
     waveformPeaks: null,
+    songStructure: null,
     cuePoints: [],
     loop: null,
     isPlaying: false,
@@ -395,6 +398,15 @@ export class MusicEngine {
     } catch {
       d.waveformPeaks = null
     }
+
+    // Song structure analysis (needs waveform peaks + BPM)
+    try {
+      if (d.waveformPeaks) {
+        d.songStructure = analyzeSongStructure(d.waveformPeaks, buffer.duration, d.detectedBPM)
+      }
+    } catch {
+      d.songStructure = null
+    }
   }
 
   getBPM(deck: "A" | "B"): number | null {
@@ -407,6 +419,10 @@ export class MusicEngine {
 
   getWaveformPeaks(deck: "A" | "B"): WaveformPeak[] | null {
     return (deck === "A" ? this.deckA : this.deckB).waveformPeaks
+  }
+
+  getSongStructure(deck: "A" | "B"): SongStructure | null {
+    return (deck === "A" ? this.deckA : this.deckB).songStructure
   }
 
   // --- Cue Points ---
@@ -1101,106 +1117,44 @@ export class MusicEngine {
   }
 
   private startPostTransitionRecovery(): void {
-    if (this.recoveryInterval) {
-      clearInterval(this.recoveryInterval)
+    if (this.recoveryInterval) clearInterval(this.recoveryInterval)
+    if (!this.audioContext) return
+
+    const now = this.audioContext.currentTime
+    // Time constant for setTargetAtTime — reaches ~95% of target in 3*τ
+    // τ=0.6 → ~1.8s to mostly recover, ~3s to fully settle
+    const tau = 0.6
+    const tauSlow = 1.0 // slower for FX tails (reverb/delay sound jarring if cut fast)
+
+    // Use Web Audio's native smooth interpolation on all nodes
+    for (const deck of [this.deckA, this.deckB]) {
+      // EQ → 0dB
+      deck.eqLow?.gain.setTargetAtTime(0, now, tau)
+      deck.eqMid?.gain.setTargetAtTime(0, now, tau)
+      deck.eqHigh?.gain.setTargetAtTime(0, now, tau)
+      // Isolation gains → 0 (dry path takes over)
+      deck.bassIsolateGain?.gain.setTargetAtTime(0, now, tau)
+      deck.voiceIsolateGain?.gain.setTargetAtTime(0, now, tau)
+      deck.melodyIsolateGain?.gain.setTargetAtTime(0, now, tau)
+      // Re-enable dry path
+      deck.dryPath?.gain.setTargetAtTime(1, now, tau)
     }
 
-    const recoveryRate = 0.03
-    const threshold = 0.1
+    // Filter → wide open
+    this.filter?.frequency.setTargetAtTime(20000, now, tau)
+    this.filter?.Q.setTargetAtTime(1, now, tau)
 
+    // FX → 0 (slower to let reverb/delay tails decay naturally)
+    this.reverbGain?.gain.setTargetAtTime(0, now, tauSlow)
+    this.delayWet?.gain.setTargetAtTime(0, now, tauSlow)
+    this.delayFeedback?.gain.setTargetAtTime(0, now, tauSlow * 1.5)
+    this.flangerWet?.gain.setTargetAtTime(0, now, tau)
+    this.flangerDry?.gain.setTargetAtTime(1, now, tau)
+
+    // Periodically sync musicObject state for UI, then clean up
+    let ticks = 0
     this.recoveryInterval = setInterval(() => {
-      let allNeutral = true
-
-      // Drift per-deck EQ back to 0
-      for (const deckKey of ["A", "B"] as const) {
-        const deck = deckKey === "A" ? this.deckA : this.deckB
-        for (const node of [
-          { ref: deck.eqLow, key: "low" as const },
-          { ref: deck.eqMid, key: "mid" as const },
-          { ref: deck.eqHigh, key: "high" as const },
-        ]) {
-          if (!node.ref) continue
-          const current = node.ref.gain.value
-          if (Math.abs(current) > threshold) {
-            allNeutral = false
-            node.ref.gain.value = current * (1 - recoveryRate)
-          } else if (current !== 0) {
-            node.ref.gain.value = 0
-          }
-        }
-      }
-
-      // Drift isolation gains back to 0 (inactive) — the dry path handles full audio
-      for (const deckKey of ["A", "B"] as const) {
-        const deck = deckKey === "A" ? this.deckA : this.deckB
-        for (const node of [deck.bassIsolateGain, deck.voiceIsolateGain, deck.melodyIsolateGain]) {
-          if (!node) continue
-          const current = node.gain.value
-          if (current > threshold) {
-            allNeutral = false
-            node.gain.value = current * (1 - recoveryRate)
-          } else if (current > 0) {
-            node.gain.value = 0
-          }
-        }
-        // Re-enable dry path once isolation is back to zero
-        const anyIso = (deck.bassIsolateGain?.gain.value ?? 0) > threshold ||
-                       (deck.voiceIsolateGain?.gain.value ?? 0) > threshold ||
-                       (deck.melodyIsolateGain?.gain.value ?? 0) > threshold
-        if (deck.dryPath && !anyIso) {
-          deck.dryPath.gain.value = 1
-        }
-      }
-
-      // Drift filter back to wide open (20kHz lowpass)
-      if (this.filter) {
-        const cutoff = this.filter.frequency.value
-        if (cutoff < 19000) {
-          allNeutral = false
-          this.filter.frequency.value = cutoff + (20000 - cutoff) * recoveryRate
-        } else if (cutoff < 20000) {
-          this.filter.frequency.value = 20000
-        }
-        const q = this.filter.Q.value
-        if (Math.abs(q - 1) > 0.05) {
-          allNeutral = false
-          this.filter.Q.value = q + (1 - q) * recoveryRate
-        } else {
-          this.filter.Q.value = 1
-        }
-      }
-
-      // Drift reverb/delay back to 0
-      if (this.reverbGain && this.reverbGain.gain.value > 0.005) {
-        allNeutral = false
-        this.reverbGain.gain.value *= (1 - recoveryRate)
-      } else if (this.reverbGain) {
-        this.reverbGain.gain.value = 0
-      }
-      if (this.delayWet && this.delayWet.gain.value > 0.005) {
-        allNeutral = false
-        this.delayWet.gain.value *= (1 - recoveryRate)
-      } else if (this.delayWet) {
-        this.delayWet.gain.value = 0
-      }
-      if (this.delayFeedback && this.delayFeedback.gain.value > 0.005) {
-        this.delayFeedback.gain.value *= (1 - recoveryRate)
-      } else if (this.delayFeedback) {
-        this.delayFeedback.gain.value = 0
-      }
-
-      // Drift flanger back to 0
-      if (this.flangerWet && this.flangerWet.gain.value > 0.005) {
-        allNeutral = false
-        this.flangerWet.gain.value *= (1 - recoveryRate)
-      } else if (this.flangerWet) {
-        this.flangerWet.gain.value = 0
-      }
-      if (this.flangerDry && this.flangerDry.gain.value < 0.995) {
-        this.flangerDry.gain.value += (1 - this.flangerDry.gain.value) * recoveryRate
-      }
-
-      // Update musicObject to reflect recovery
+      ticks++
       this.musicObject = {
         ...this.musicObject,
         reverbAmount: this.reverbGain?.gain.value ?? 0,
@@ -1228,11 +1182,12 @@ export class MusicEngine {
         },
       }
 
-      if (allNeutral) {
+      // After ~4s (5*tau), everything is effectively at target — stop syncing
+      if (ticks >= 20) {
         clearInterval(this.recoveryInterval!)
         this.recoveryInterval = null
       }
-    }, 100)
+    }, 200)
   }
 
   private interpolateAutomation(points: { t: number; value: number }[], progress: number): number {

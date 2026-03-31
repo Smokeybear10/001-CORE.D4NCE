@@ -5,8 +5,11 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { useVoiceCommands } from "@/hooks/use-voice-commands"
 import { analyzeFrequencyData, describeAudioState, type AudioSnapshot } from "@/lib/audio-analyzer"
 import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
+import type { SongStructure } from "@/lib/song-structure"
+import { structureToPromptText, findNextExitPoint, findBestEntryPoint } from "@/lib/song-structure"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Mic, MicOff, Volume2, VolumeX, Send, Loader2, Sparkles } from "lucide-react"
+import { Mic, MicOff, Send, Loader2, Sparkles } from "lucide-react"
+import type { AIModelId } from "@/lib/ai-model"
 import { cn } from "@/lib/utils"
 import { deepMerge } from "@/lib/utils"
 
@@ -23,6 +26,10 @@ interface GrokChatPanelProps {
   onAction: (action: string, params?: Record<string, unknown>) => void
   onLoadTrack: (track: Track, deck: "A" | "B") => void
   onCancelTransition: () => void
+  isPlayingA?: boolean
+  isPlayingB?: boolean
+  structureA?: SongStructure | null
+  structureB?: SongStructure | null
   currentTimeA?: number
   currentTimeB?: number
   durationA?: number
@@ -49,8 +56,6 @@ interface ParsedAction {
   preset?: Partial<MusicObject>
 }
 
-type GrokVoice = "Ara" | "Rex" | "Sal" | "Eve" | "Una" | "Leo"
-
 export function GrokChatPanel({
   trackA,
   trackB,
@@ -64,6 +69,10 @@ export function GrokChatPanel({
   onAction,
   onLoadTrack,
   onCancelTransition,
+  isPlayingA,
+  isPlayingB,
+  structureA,
+  structureB,
   currentTimeA,
   currentTimeB,
   durationA,
@@ -71,79 +80,14 @@ export function GrokChatPanel({
   getAudioContext,
 }: GrokChatPanelProps) {
   const [textInput, setTextInput] = useState("")
+  const [selectedModel, setSelectedModel] = useState<AIModelId>("sonnet")
   const [audioSnapshot, setAudioSnapshot] = useState<AudioSnapshot | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const analyzeIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const [localMessages, setLocalMessages] = useState<Array<{ id: string; role: string; content: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const [ttsEnabled, setTtsEnabled] = useState(false)
-  const [grokVoice, setGrokVoice] = useState<GrokVoice>("Ara")
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const speakText = useCallback(
-    async (text: string) => {
-      if (!ttsEnabled || !text.trim()) return
-
-      const cleanText = text
-        .replace(/```json[\s\S]*?```/g, "")
-        .replace(/```[\s\S]*?```/g, "")
-        .replace(/\*\*/g, "")
-        .replace(/\n+/g, " ")
-        .trim()
-
-      if (!cleanText || cleanText.length < 3) return
-
-      try {
-        setIsSpeaking(true)
-
-        const response = await fetch("/api/grok/speak", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: cleanText, voice: grokVoice }),
-        })
-
-        if (!response.ok) throw new Error("TTS failed")
-
-        const audioBlob = await response.blob()
-        const audioUrl = URL.createObjectURL(audioBlob)
-
-        if (audioRef.current) {
-          audioRef.current.pause()
-          URL.revokeObjectURL(audioRef.current.src)
-        }
-
-        const audio = new Audio(audioUrl)
-        audioRef.current = audio
-
-        audio.onended = () => {
-          setIsSpeaking(false)
-          URL.revokeObjectURL(audioUrl)
-        }
-
-        audio.onerror = () => {
-          setIsSpeaking(false)
-          URL.revokeObjectURL(audioUrl)
-        }
-
-        await audio.play()
-      } catch (error) {
-        console.error("TTS error:", error)
-        setIsSpeaking(false)
-      }
-    },
-    [ttsEnabled, grokVoice],
-  )
-
-  const stopSpeaking = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-      setIsSpeaking(false)
-    }
-  }, [])
 
   const handleAction = useCallback(
     async (parsed: ParsedAction) => {
@@ -184,6 +128,11 @@ export function GrokChatPanel({
                   if (currentTrackA && currentTrackB) {
                     try {
                       console.log("[GrokChat] Requesting transition after loading track")
+                      const outDeck: "A" | "B" = isPlayingB && !isPlayingA ? "B"
+                        : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
+                        : "A"
+                      const outStructure = outDeck === "A" ? structureA : structureB
+                      const inStructure = outDeck === "A" ? structureB : structureA
                       const response = await fetch("/api/grok/transition", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -196,7 +145,11 @@ export function GrokChatPanel({
                           durationA,
                           currentTimeB,
                           durationB,
+                          outgoingDeck: outDeck,
                           audioContext: getAudioContext?.(),
+                          outgoingStructure: outStructure ?? undefined,
+                          incomingStructure: inStructure ?? undefined,
+                          model: selectedModel,
                         }),
                       })
 
@@ -218,6 +171,11 @@ export function GrokChatPanel({
               if (trackA && trackB) {
                 try {
                   console.log("[GrokChat] Requesting transition between loaded tracks")
+                  const outDeck2: "A" | "B" = isPlayingB && !isPlayingA ? "B"
+                    : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
+                    : "A"
+                  const outStr = outDeck2 === "A" ? structureA : structureB
+                  const inStr = outDeck2 === "A" ? structureB : structureA
                   const response = await fetch("/api/grok/transition", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -230,7 +188,11 @@ export function GrokChatPanel({
                       durationA,
                       currentTimeB,
                       durationB,
+                      outgoingDeck: outDeck2,
                       audioContext: getAudioContext?.(),
+                      outgoingStructure: outStr ?? undefined,
+                      incomingStructure: inStr ?? undefined,
+                      model: selectedModel,
                     }),
                   })
 
@@ -337,6 +299,7 @@ export function GrokChatPanel({
             conversationHistory: localMessages.slice(-10),
             availableTracks: tracks,
             audioContext: getAudioContext?.(),
+            model: selectedModel,
           }),
         })
 
@@ -445,8 +408,6 @@ export function GrokChatPanel({
           return
         }
 
-        speakText(fullText)
-
         // Parse for actions
         const jsonMatch = fullText.match(/```json\n?([\s\S]*?)\n?```/)
         if (jsonMatch) {
@@ -481,10 +442,10 @@ export function GrokChatPanel({
       musicObject,
       localMessages,
       handleAction,
-      speakText,
       onApplySettings,
       tracks,
       getAudioContext,
+      selectedModel,
     ],
   )
 
@@ -515,15 +476,6 @@ export function GrokChatPanel({
   }, [getAnalyserData])
 
   useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        URL.revokeObjectURL(audioRef.current.src)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [localMessages])
 
@@ -546,7 +498,7 @@ export function GrokChatPanel({
     <div className="flex flex-col h-full rounded-2xl bg-[#0c0c18] border border-white/[0.06] overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04]">
         <div className="flex items-center gap-2.5">
           <div className={cn(
             "w-6 h-6 rounded-full flex items-center justify-center",
@@ -554,51 +506,32 @@ export function GrokChatPanel({
           )}>
             <Sparkles className={cn("h-3 w-3", isListening ? "text-red-400" : "text-violet-400")} />
           </div>
-          <span className="text-[11px] font-semibold text-white/60 uppercase tracking-widest">Grok AI</span>
           {isListening && (
             <span className="flex items-center gap-1 text-[10px] text-red-400 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
               Listening
             </span>
           )}
-          {isSpeaking && (
-            <span className="flex items-center gap-1 text-[10px] text-violet-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-              Speaking
-            </span>
-          )}
         </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Voice selector — always visible, compact */}
-          <div className="flex gap-0.5">
-            {(["Ara", "Eve", "Rex", "Leo"] as GrokVoice[]).map((voice) => (
-              <button
-                key={voice}
-                onClick={() => setGrokVoice(voice)}
-                className={cn(
-                  "px-2 py-1 rounded text-[10px] font-medium transition-colors",
-                  grokVoice === voice
-                    ? "bg-violet-500/20 text-violet-300"
-                    : "text-white/25 hover:text-white/50",
-                )}
-              >
-                {voice}
-              </button>
-            ))}
-          </div>
-
-          {/* TTS toggle */}
-          <button
-            onClick={() => isSpeaking ? stopSpeaking() : setTtsEnabled(!ttsEnabled)}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              ttsEnabled ? "text-white/40 hover:text-white/60" : "text-white/20 hover:text-white/40",
-            )}
-            title={isSpeaking ? "Stop speaking" : ttsEnabled ? "Mute" : "Unmute"}
-          >
-            {ttsEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-          </button>
+        <div className="flex gap-1">
+          {([
+            { id: "sonnet" as const, label: "Sonnet" },
+            { id: "haiku" as const, label: "Haiku" },
+            { id: "grok" as const, label: "Grok" },
+          ]).map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setSelectedModel(id)}
+              className={cn(
+                "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+                selectedModel === id
+                  ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  : "text-white/30 hover:text-white/50 border border-transparent",
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 

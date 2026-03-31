@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import type { Track, MusicObject, TransitionPlan, WaveformPeak, CuePoint, LoopRegion } from "@/lib/types"
 import type { TransitionState } from "@/lib/music-engine"
+import type { SongStructure } from "@/lib/song-structure"
 import { Library, Sliders, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Deck } from "@/components/dj/deck"
@@ -42,6 +43,8 @@ interface DjSidePanelProps {
   keyCompatibility?: number | null
   waveformPeaksA?: WaveformPeak[] | null
   waveformPeaksB?: WaveformPeak[] | null
+  structureA?: SongStructure | null
+  structureB?: SongStructure | null
   cuePointsA?: CuePoint[]
   cuePointsB?: CuePoint[]
   loopA?: LoopRegion | null
@@ -79,7 +82,7 @@ export function DjSidePanel({
   trackA, trackB, tracks, musicObject, transitionState,
   isPlayingA, isPlayingB, currentTimeA, currentTimeB, durationA, durationB,
   bpmA, bpmB, camelotA, camelotB, keyCompatibility,
-  waveformPeaksA, waveformPeaksB, cuePointsA, cuePointsB, loopA, loopB,
+  waveformPeaksA, waveformPeaksB, structureA, structureB, cuePointsA, cuePointsB, loopA, loopB,
   getAnalyserData, onLoadToDeck, onApplyPreset, onApplyTransition,
   onVoiceAction, onCancelTransition, play, pause, seek, setCrossfade,
   onIsolationChange, updateMusicObject,
@@ -141,6 +144,10 @@ export function DjSidePanel({
             musicObject={musicObject}
             tracks={tracks}
             transitionState={transitionState}
+            isPlayingA={isPlayingA}
+            isPlayingB={isPlayingB}
+            structureA={structureA}
+            structureB={structureB}
             getAnalyserData={getAnalyserData}
             onApplySettings={onApplyPreset}
             onApplyTransition={onApplyTransition}

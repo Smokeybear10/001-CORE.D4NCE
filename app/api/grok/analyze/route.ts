@@ -1,6 +1,6 @@
 import { generateObject } from "ai"
-import { xai } from "@ai-sdk/xai"
 import { type NextRequest, NextResponse } from "next/server"
+import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import { updateTrack, getTrackById } from "@/lib/music-store"
 
@@ -9,8 +9,8 @@ const trackAnalysisSchema = z.object({
   artist: z.string().describe("The artist name (e.g. 'Nicki Minaj', 'Kesha'). Extract from filename/metadata."),
   genre: z.string().describe("The primary genre of the track"),
   mood: z.string().describe("The overall mood/feeling of the track"),
-  energy: z.number().min(0).max(1).describe("Energy level from 0 (calm) to 1 (intense)"),
-  bpm: z.number().min(60).max(200).describe("Estimated BPM"),
+  energy: z.number().describe("Energy level from 0 (calm) to 1 (intense)"),
+  bpm: z.number().describe("Estimated BPM (60-200)"),
   key: z.string().describe('Musical key (e.g., "C major", "A minor")'),
   description: z.string().describe("A short vibe description of the track"),
   tags: z.array(z.string()).describe("Relevant tags for the track"),
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { object: analysis } = await generateObject({
-      model: xai("grok-3"),
+      model: getAIModel(),
       schema: trackAnalysisSchema,
       prompt: `Analyze this music track and identify the REAL song title and artist:
 

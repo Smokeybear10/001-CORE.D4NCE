@@ -1,6 +1,6 @@
 import { generateObject } from "ai"
-import { xai } from "@ai-sdk/xai"
 import { type NextRequest, NextResponse } from "next/server"
+import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import { addPreset } from "@/lib/music-store"
 import type { Preset } from "@/lib/types"
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { object: presetData } = await generateObject({
-      model: xai("grok-3"),
+      model: getAIModel(),
       schema: presetSchema,
       prompt: `Create a DJ mixer preset based on this description:
 
