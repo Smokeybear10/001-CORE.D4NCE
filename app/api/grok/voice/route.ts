@@ -1,11 +1,12 @@
 import { streamText } from "ai"
-import { xai } from "@ai-sdk/xai"
 import type { NextRequest } from "next/server"
+import { getFastModel } from "@/lib/ai-model"
 
 export async function POST(request: NextRequest) {
   try {
-    const { command, audioSnapshot, currentTrackA, currentTrackB, musicObject, conversationHistory, availableTracks, audioContext: audioCtx } =
-      await request.json()
+    const body = await request.json()
+    const { command, audioSnapshot, currentTrackA, currentTrackB, musicObject, conversationHistory, availableTracks, audioContext: audioCtx, model: modelOverride } =
+      body
 
     if (!command) {
       return new Response(JSON.stringify({ error: "Voice command is required" }), {
@@ -139,7 +140,7 @@ DJ INTELLIGENCE:
     const messages = [...(conversationHistory || []).slice(-10), { role: "user" as const, content: command }]
 
     const result = streamText({
-      model: xai("grok-3-fast"),
+      model: getFastModel(modelOverride),
       system: systemPrompt,
       messages,
     })

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
+import { findBestEntryPoint } from "@/lib/song-structure"
 import { useMusicEngine } from "@/hooks/use-music-engine"
 import { useTracks } from "@/hooks/use-tracks"
 import { ThreeVisualizer } from "@/components/visualizer/three-visualizer"
@@ -41,6 +42,8 @@ export default function DJSystem() {
     keyCompatibility,
     waveformPeaksA,
     waveformPeaksB,
+    structureA,
+    structureB,
     cuePointsA,
     cuePointsB,
     loopA,
@@ -151,8 +154,19 @@ export default function DJSystem() {
       const incomingTrack = incomingDeck === "A" ? trackA : trackB
       const incomingPlaying = incomingDeck === "A" ? isPlayingA : isPlayingB
 
-      const cuePoint = (plan as TransitionPlan & { incomingStartSeconds?: number }).incomingStartSeconds
-      if (cuePoint && cuePoint > 0) seek(incomingDeck, cuePoint)
+      // Determine where to start the incoming track:
+      // 1. Use AI's incomingStartSeconds if provided
+      // 2. Fall back to structure analysis bestEntryPoint
+      // 3. Default to 0 (start from beginning)
+      const incomingStructure = incomingDeck === "A" ? structureA : structureB
+      const structureEntry = incomingStructure ? findBestEntryPoint(incomingStructure).time : 0
+      const cuePoint = (plan.incomingStartSeconds && plan.incomingStartSeconds > 0)
+        ? plan.incomingStartSeconds
+        : structureEntry
+      if (cuePoint > 0) seek(incomingDeck, cuePoint)
+
+      // Track the real crossfader position (React state may be stale in the setTimeout)
+      let actualCrossfader = musicObject.crossfader
 
       // Before starting the incoming deck, snap the crossfader fully to the outgoing deck
       // so the incoming deck is silent when it starts
@@ -160,6 +174,7 @@ export default function DJSystem() {
         const safeStart = outgoingDeck === "A" ? 0 : 1
         setCrossfade(safeStart)
         updateMusicObject({ crossfader: safeStart })
+        actualCrossfader = safeStart
         play(incomingDeck)
       }
 
@@ -203,15 +218,13 @@ export default function DJSystem() {
           }))
         }
 
-        // Ensure the crossfader starts from where it actually is right now
-        // to prevent sudden jumps
-        const currentPos = musicObject.crossfader
+        // Use the actual crossfader position we set (not stale React state)
+        // to prevent the safety check from jumping to 0.5
         if (adjustedPlan.crossfadeAutomation.length > 0) {
           const expectedStart = adjustedPlan.crossfadeAutomation[0]?.value ?? 0
-          if (Math.abs(currentPos - expectedStart) > 0.05) {
-            // Prepend current position and remove any early points that would cause a jump
+          if (Math.abs(actualCrossfader - expectedStart) > 0.05) {
             adjustedPlan.crossfadeAutomation = [
-              { t: 0, value: currentPos },
+              { t: 0, value: actualCrossfader },
               ...adjustedPlan.crossfadeAutomation.filter(p => p.t > 0.05),
             ]
           }
@@ -224,7 +237,7 @@ export default function DJSystem() {
         }
       }, Math.max(startDelay, incomingPlaying ? 0 : 150))
     },
-    [applyTransitionPlan, updateMusicObject, isPlayingA, isPlayingB, trackA, trackB, play, seek, setCrossfade, musicObject.crossfader],
+    [applyTransitionPlan, updateMusicObject, isPlayingA, isPlayingB, trackA, trackB, structureA, structureB, play, seek, setCrossfade, musicObject.crossfader],
   )
 
   const handleApplyPreset = useCallback(
@@ -349,6 +362,8 @@ export default function DJSystem() {
             keyCompatibility={keyCompatibility}
             waveformPeaksA={waveformPeaksA}
             waveformPeaksB={waveformPeaksB}
+            structureA={structureA}
+            structureB={structureB}
             cuePointsA={cuePointsA}
             cuePointsB={cuePointsB}
             loopA={loopA}

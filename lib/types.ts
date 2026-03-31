@@ -126,6 +126,7 @@ export interface TransitionPlan {
   deckBIsolationAutomation?: { t: number; bass: number; voice: number; melody: number }[]
   // One-shot effects fired at specific transition points
   triggers?: { t: number; type: "vinylBrake" | "spinback"; deck: "outgoing" | "incoming" | "A" | "B"; duration?: number }[]
+  incomingStartSeconds?: number
   visualizerConfig?: Partial<MusicObject>
   explanation?: string
 }
