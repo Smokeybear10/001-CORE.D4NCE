@@ -16,7 +16,7 @@ export function LibraryDrawer({ open, onClose, onLoadToDeck, trackA, trackB }: L
   if (!open) return null
 
   return (
-    <aside className="absolute right-2 top-[52px] bottom-[56px] z-25 flex w-[260px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
+    <aside className="absolute right-2 top-[52px] bottom-[68px] z-25 flex w-[260px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
       <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
         <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-violet-300/20">Library</span>
         <button

@@ -79,27 +79,27 @@ function InlineWaveform({
 
   return (
     <div className={cn(
-      "group relative flex-1 min-w-0 h-[38px] rounded-lg overflow-hidden transition-all cursor-pointer",
-      "bg-[#150535]/60 border border-violet-500/[0.06]",
+      "group relative flex-1 min-w-0 h-[48px] rounded-lg overflow-hidden transition-all cursor-pointer",
+      "bg-[#150535]/70 border border-violet-500/[0.1]",
       isPlaying && (isA
-        ? "border-fuchsia-500/15 shadow-[0_0_12px_rgba(246,46,151,0.1)]"
-        : "border-cyan-500/15 shadow-[0_0_12px_rgba(1,205,254,0.1)]"
+        ? "border-fuchsia-500/20 shadow-[0_0_16px_rgba(246,46,151,0.15)]"
+        : "border-cyan-500/20 shadow-[0_0_16px_rgba(1,205,254,0.15)]"
       ),
     )}>
       {/* Top info row */}
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-2 pt-0.5 pointer-events-none">
         <div className="flex items-center gap-1 min-w-0">
           <span className={cn(
-            "shrink-0 text-[8px] font-mono font-bold",
-            isA ? "text-fuchsia-400/50" : "text-cyan-400/50",
+            "shrink-0 text-[9px] font-mono font-bold",
+            isA ? "text-fuchsia-400/65" : "text-cyan-400/65",
           )}>{deck}</span>
           {track && (
-            <span className="text-[9px] text-amber-200/35 truncate">{track.title}</span>
+            <span className="text-[10px] text-amber-200/50 truncate">{track.title}</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {bpm && <span className="text-[8px] font-mono text-amber-300/30 tabular-nums">{Math.round(bpm)}</span>}
-          {camelotKey && <span className="text-[7px] font-mono text-violet-300/20">{camelotKey}</span>}
+          {bpm && <span className="text-[9px] font-mono text-amber-300/45 tabular-nums">{Math.round(bpm)}</span>}
+          {camelotKey && <span className="text-[8px] font-mono text-violet-300/35">{camelotKey}</span>}
         </div>
       </div>
 
@@ -155,8 +155,8 @@ function InlineWaveform({
 
       {/* Time overlay */}
       <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-2 pb-0.5 pointer-events-none">
-        <span className="text-[7px] font-mono text-violet-300/20 tabular-nums">{formatTime(currentTime)}</span>
-        <span className="text-[7px] font-mono text-violet-300/20 tabular-nums">-{formatTime(remaining)}</span>
+        <span className="text-[8px] font-mono text-violet-300/35 tabular-nums">{formatTime(currentTime)}</span>
+        <span className="text-[8px] font-mono text-violet-300/35 tabular-nums">-{formatTime(remaining)}</span>
       </div>
 
       {/* Play/pause on hover */}

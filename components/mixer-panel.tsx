@@ -89,7 +89,7 @@ export function MixerPanel({
   ]
 
   return (
-    <aside className="absolute left-2 top-[52px] bottom-[56px] z-25 flex w-[200px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
+    <aside className="absolute left-2 top-[52px] bottom-[68px] z-25 flex w-[200px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
 
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 pt-3.5 pb-2">
