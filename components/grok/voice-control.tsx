@@ -491,18 +491,18 @@ export function VoiceControl({
   const audioDescription = audioSnapshot ? describeAudioState(audioSnapshot) : "No audio"
 
   return (
-    <div className="flex flex-col h-full bg-[#0c0c1a]/95 backdrop-blur-xl rounded-xl border border-violet-500/30 overflow-hidden">
+    <div className="flex flex-col h-full bg-[#150535] rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)] overflow-hidden">
       {/* Header */}
-      <div className="p-3 border-b border-white/[0.08]">
+      <div className="p-3 border-b border-violet-500/[0.1]">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Sparkles className="h-4 w-4 text-violet-400" />
+              <Sparkles className="h-4 w-4 text-fuchsia-400" />
               <div className="absolute inset-0 animate-pulse">
-                <Sparkles className="h-4 w-4 text-violet-400 opacity-50" />
+                <Sparkles className="h-4 w-4 text-fuchsia-400 opacity-50" />
               </div>
             </div>
-            <h2 className="text-sm font-semibold text-white">Voice Control</h2>
+            <h2 className="text-sm font-semibold text-violet-100">Voice Control</h2>
           </div>
 
           <div className="flex items-center gap-2">
@@ -517,10 +517,10 @@ export function VoiceControl({
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] transition-colors",
                 isSpeaking
-                  ? "bg-violet-500/30 text-violet-400 animate-pulse"
+                  ? "bg-fuchsia-500/30 text-fuchsia-400 animate-pulse"
                   : ttsEnabled
                     ? "bg-cyan-500/20 text-cyan-400"
-                    : "bg-white/[0.06] text-white/35",
+                    : "bg-violet-500/[0.08] text-violet-100/35",
               )}
               title={isSpeaking ? "Click to stop" : ttsEnabled ? "TTS enabled" : "TTS disabled"}
             >
@@ -531,7 +531,7 @@ export function VoiceControl({
             <div
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-full text-[10px]",
-                isAnalyzing ? "bg-cyan-500/20 text-cyan-400" : "bg-white/[0.06] text-white/35",
+                isAnalyzing ? "bg-cyan-500/20 text-cyan-400" : "bg-violet-500/[0.08] text-violet-100/35",
               )}
             >
               <AudioWaveform className="h-3 w-3" />
@@ -541,7 +541,7 @@ export function VoiceControl({
         </div>
 
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] text-white/35">Voice:</span>
+          <span className="text-[10px] text-violet-100/35">Voice:</span>
           <div className="flex gap-1">
             {(["Ara", "Rex", "Eve", "Leo"] as GrokVoice[]).map((voice) => (
               <button
@@ -551,7 +551,7 @@ export function VoiceControl({
                   "px-2 py-0.5 rounded text-[10px] transition-colors",
                   grokVoice === voice
                     ? "bg-cyan-500/30 text-cyan-400 border border-cyan-500/50"
-                    : "bg-white/[0.04] text-white/35 hover:text-white/70",
+                    : "bg-violet-500/[0.06] text-violet-100/35 hover:text-violet-100/70",
                 )}
               >
                 {voice}
@@ -560,8 +560,8 @@ export function VoiceControl({
           </div>
         </div>
 
-        <div className="text-[10px] text-white/40 bg-white/[0.04] rounded px-2 py-1">
-          <span className="text-violet-400">Hearing:</span> {audioDescription}
+        <div className="text-[10px] text-violet-100/40 bg-violet-500/[0.06] rounded px-2 py-1">
+          <span className="text-fuchsia-400">Hearing:</span> {audioDescription}
         </div>
       </div>
 
@@ -569,10 +569,10 @@ export function VoiceControl({
       <ScrollArea className="flex-1 p-3 h-full overflow-y-auto">
         <div className="space-y-3">
           {localMessages.length === 0 && (
-            <div className="text-center py-8 text-white/35 text-xs">
+            <div className="text-center py-8 text-violet-100/35 text-xs">
               <Volume2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>Click the mic or type to talk to Grok.</p>
-              <p className="mt-1 text-white/25">Grok will speak responses aloud!</p>
+              <p className="mt-1 text-violet-100/25">Grok will speak responses aloud!</p>
             </div>
           )}
 
@@ -583,7 +583,7 @@ export function VoiceControl({
                 "p-2 rounded-lg text-xs",
                 message.role === "user"
                   ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-100 ml-8"
-                  : "bg-white/[0.04] border border-white/[0.08] text-white/70 mr-8",
+                  : "bg-violet-500/[0.06] border border-violet-500/[0.1] text-violet-100/70 mr-8",
               )}
             >
               {message.role === "assistant" ? (
@@ -595,14 +595,14 @@ export function VoiceControl({
           ))}
 
           {isLoading && (
-            <div className="flex items-center gap-2 text-white/40 text-xs">
+            <div className="flex items-center gap-2 text-violet-100/40 text-xs">
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Grok is thinking...</span>
             </div>
           )}
 
           {interimTranscript && (
-            <div className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-100/90 text-xs italic ml-8">
+            <div className="p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-100/90 text-xs italic ml-8">
               {interimTranscript}...
             </div>
           )}
@@ -612,7 +612,7 @@ export function VoiceControl({
       </ScrollArea>
 
       {/* Input area */}
-      <div className="p-3 border-t border-white/[0.08] space-y-2">
+      <div className="p-3 border-t border-violet-500/[0.1] space-y-2">
         {voiceError && <p className="text-xs text-red-400">{voiceError}</p>}
 
         <div className="flex gap-2">
@@ -625,7 +625,7 @@ export function VoiceControl({
               "shrink-0 transition-all",
               isListening
                 ? "bg-red-500/20 border-red-500/50 text-red-400 animate-pulse"
-                : "border-white/[0.12] text-white/40 hover:text-violet-400 hover:border-violet-500/50",
+                : "border-violet-500/[0.15] text-violet-100/40 hover:text-fuchsia-400 hover:border-fuchsia-500/50",
             )}
           >
             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -636,14 +636,14 @@ export function VoiceControl({
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               placeholder="Type a command..."
-              className="flex-1 bg-white/[0.04] border-white/[0.10] text-sm"
+              className="flex-1 bg-violet-500/[0.06] border-violet-500/[0.12] text-sm"
               disabled={isLoading}
             />
             <Button
               type="submit"
               size="icon"
               disabled={isLoading || !textInput.trim()}
-              className="shrink-0 bg-gradient-to-r from-violet-600 to-cyan-600"
+              className="shrink-0 bg-gradient-to-r from-fuchsia-600 to-cyan-600"
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -656,7 +656,7 @@ export function VoiceControl({
               key={cmd}
               onClick={() => sendMessage(cmd)}
               disabled={isLoading}
-              className="px-2 py-0.5 rounded text-[10px] bg-white/[0.04] text-white/40 hover:text-violet-400 hover:bg-white/[0.07] transition-colors disabled:opacity-50"
+              className="px-2 py-0.5 rounded text-[10px] bg-violet-500/[0.06] text-violet-100/40 hover:text-fuchsia-400 hover:bg-violet-500/[0.08] transition-colors disabled:opacity-50"
             >
               {cmd}
             </button>

@@ -4,31 +4,28 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.08 0.02 280);
-  --foreground: oklch(0.95 0.01 280);
-  --card: oklch(0.12 0.02 280);
-  --card-foreground: oklch(0.95 0.01 280);
-  --popover: oklch(0.12 0.02 280);
-  --popover-foreground: oklch(0.95 0.01 280);
-  --primary: oklch(0.65 0.25 280);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.2 0.03 280);
-  --secondary-foreground: oklch(0.95 0.01 280);
-  --muted: oklch(0.2 0.03 280);
-  --muted-foreground: oklch(0.65 0.02 280);
-  --accent: oklch(0.7 0.2 195);
-  --accent-foreground: oklch(0.12 0.02 280);
+  /* Deep purple void — Paradise Killer palette */
+  --background: oklch(0.08 0.06 290);
+  --foreground: oklch(0.93 0.02 300);
+  --card: oklch(0.12 0.08 290);
+  --card-foreground: oklch(0.93 0.02 300);
+  --popover: oklch(0.12 0.08 290);
+  --popover-foreground: oklch(0.93 0.02 300);
+  --primary: oklch(0.62 0.28 340);
+  --primary-foreground: oklch(0.98 0.01 300);
+  --secondary: oklch(0.16 0.06 290);
+  --secondary-foreground: oklch(0.93 0.02 300);
+  --muted: oklch(0.16 0.06 290);
+  --muted-foreground: oklch(0.55 0.04 300);
+  --accent: oklch(0.78 0.15 200);
+  --accent-foreground: oklch(0.08 0.06 290);
   --destructive: oklch(0.55 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.3 0.05 280);
-  --input: oklch(0.2 0.03 280);
-  --ring: oklch(0.65 0.25 280);
+  --border: oklch(0.22 0.08 300);
+  --input: oklch(0.16 0.06 290);
+  --ring: oklch(0.60 0.25 300);
   --radius: 0.75rem;
 
-  /* Custom cyberpunk colors */
-  --neon-purple: oklch(0.65 0.3 280);
-  --neon-cyan: oklch(0.75 0.2 195);
-  --neon-pink: oklch(0.7 0.25 330);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -45,25 +42,25 @@
 }
 
 .dark {
-  --background: oklch(0.08 0.02 280);
-  --foreground: oklch(0.95 0.01 280);
-  --card: oklch(0.12 0.02 280);
-  --card-foreground: oklch(0.95 0.01 280);
-  --popover: oklch(0.12 0.02 280);
-  --popover-foreground: oklch(0.95 0.01 280);
-  --primary: oklch(0.65 0.25 280);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.2 0.03 280);
-  --secondary-foreground: oklch(0.95 0.01 280);
-  --muted: oklch(0.2 0.03 280);
-  --muted-foreground: oklch(0.65 0.02 280);
-  --accent: oklch(0.7 0.2 195);
-  --accent-foreground: oklch(0.12 0.02 280);
+  --background: oklch(0.08 0.06 290);
+  --foreground: oklch(0.93 0.02 300);
+  --card: oklch(0.12 0.08 290);
+  --card-foreground: oklch(0.93 0.02 300);
+  --popover: oklch(0.12 0.08 290);
+  --popover-foreground: oklch(0.93 0.02 300);
+  --primary: oklch(0.62 0.28 340);
+  --primary-foreground: oklch(0.98 0.01 300);
+  --secondary: oklch(0.16 0.06 290);
+  --secondary-foreground: oklch(0.93 0.02 300);
+  --muted: oklch(0.16 0.06 290);
+  --muted-foreground: oklch(0.55 0.04 300);
+  --accent: oklch(0.78 0.15 200);
+  --accent-foreground: oklch(0.08 0.06 290);
   --destructive: oklch(0.55 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.3 0.05 280);
-  --input: oklch(0.2 0.03 280);
-  --ring: oklch(0.65 0.25 280);
+  --border: oklch(0.22 0.08 300);
+  --input: oklch(0.16 0.06 290);
+  --ring: oklch(0.60 0.25 300);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -71,7 +68,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.488 0.15 250);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -80,7 +77,6 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --font-sans: "Rajdhani", "Rajdhani Fallback", sans-serif;
   --font-mono: "Orbitron", "Orbitron Fallback", monospace;
   --color-background: var(--background);
@@ -130,53 +126,89 @@
   }
 }
 
-/* Cyberpunk glow effects */
-@layer utilities {
-  .glow-purple {
-    box-shadow: 0 0 20px oklch(0.65 0.25 280 / 0.5), 0 0 40px oklch(0.65 0.25 280 / 0.3);
-  }
-  .glow-cyan {
-    box-shadow: 0 0 20px oklch(0.7 0.2 195 / 0.5), 0 0 40px oklch(0.7 0.2 195 / 0.3);
-  }
-  .text-glow-purple {
-    text-shadow: 0 0 10px oklch(0.65 0.25 280 / 0.8);
-  }
-  .text-glow-cyan {
-    text-shadow: 0 0 10px oklch(0.7 0.2 195 / 0.8);
-  }
+/* Vaporwave neon glow text */
+.neon-pink {
+  text-shadow:
+    0 0 7px rgba(246, 46, 151, 0.8),
+    0 0 20px rgba(246, 46, 151, 0.4),
+    0 0 40px rgba(246, 46, 151, 0.15);
 }
 
-/* Custom scrollbar */
+.neon-cyan {
+  text-shadow:
+    0 0 7px rgba(1, 205, 254, 0.8),
+    0 0 20px rgba(1, 205, 254, 0.4),
+    0 0 40px rgba(1, 205, 254, 0.15);
+}
+
+.neon-gold {
+  text-shadow:
+    0 0 7px rgba(249, 171, 83, 0.7),
+    0 0 20px rgba(249, 171, 83, 0.3);
+}
+
+/* Retro grid overlay */
+.retro-grid {
+  background-image:
+    linear-gradient(rgba(185, 103, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185, 103, 255, 0.035) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Perspective grid floor — vaporwave horizon */
+.retro-floor {
+  background-image:
+    linear-gradient(rgba(1, 205, 254, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(1, 205, 254, 0.08) 1px, transparent 1px);
+  background-size: 60px 60px;
+  transform: perspective(400px) rotateX(55deg);
+  transform-origin: center top;
+}
+
+/* Scanline overlay for CRT/retro feel */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  z-index: 1;
+}
+
+/* Custom scrollbar — purple-tinted */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: oklch(0.12 0.02 280);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.3 0.05 280);
-  border-radius: 3px;
+  background: rgba(185, 103, 255, 0.12);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.4 0.08 280);
+  background: rgba(185, 103, 255, 0.25);
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* Help modal animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -185,4 +217,9 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(24px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes neonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }

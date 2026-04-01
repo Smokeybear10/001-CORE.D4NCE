@@ -495,16 +495,16 @@ export function GrokChatPanel({
   ]
 
   return (
-    <div className="flex flex-col h-full rounded-2xl bg-[#0c0c18] border border-white/[0.06] overflow-hidden">
+    <div className="flex flex-col h-full rounded-2xl bg-[#150535] border border-violet-500/[0.1] overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04]">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-violet-500/[0.06]">
         <div className="flex items-center gap-2.5">
           <div className={cn(
             "w-6 h-6 rounded-full flex items-center justify-center",
-            isListening ? "bg-red-500/20" : "bg-violet-500/15",
+            isListening ? "bg-red-500/20" : "bg-fuchsia-500/15",
           )}>
-            <Sparkles className={cn("h-3 w-3", isListening ? "text-red-400" : "text-violet-400")} />
+            <Sparkles className={cn("h-3 w-3", isListening ? "text-red-400" : "text-fuchsia-400")} />
           </div>
           {isListening && (
             <span className="flex items-center gap-1 text-[10px] text-red-400 font-medium">
@@ -525,8 +525,8 @@ export function GrokChatPanel({
               className={cn(
                 "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
                 selectedModel === id
-                  ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
-                  : "text-white/30 hover:text-white/50 border border-transparent",
+                  ? "bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30"
+                  : "text-violet-200/30 hover:text-violet-200/50 border border-transparent",
               )}
             >
               {label}
@@ -547,12 +547,12 @@ export function GrokChatPanel({
                   "w-14 h-14 mb-3 rounded-full flex items-center justify-center transition-all border",
                   isListening
                     ? "bg-red-500/10 border-red-500/30 text-red-400"
-                    : "bg-violet-500/10 border-violet-500/20 text-violet-400 hover:bg-violet-500/15 hover:border-violet-500/30",
+                    : "bg-pink-500/10 border-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/15 hover:border-fuchsia-500/30",
                 )}
               >
                 <Mic className="h-6 w-6" />
               </button>
-              <p className="text-[11px] text-white/25 tracking-wide">Ask Grok to control the mix</p>
+              <p className="text-[11px] text-violet-200/25 tracking-wide">Ask Grok to control the mix</p>
             </div>
           )}
 
@@ -566,19 +566,19 @@ export function GrokChatPanel({
             >
               <div className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5",
-                message.role === "user" ? "bg-white/10" : "bg-violet-500/15",
+                message.role === "user" ? "bg-violet-500/10" : "bg-fuchsia-500/15",
               )}>
                 {message.role === "user"
-                  ? <Mic className="h-3 w-3 text-white/50" />
-                  : <Sparkles className="h-3 w-3 text-violet-400" />
+                  ? <Mic className="h-3 w-3 text-violet-200/50" />
+                  : <Sparkles className="h-3 w-3 text-fuchsia-400" />
                 }
               </div>
 
               <div className={cn(
                 "px-3 py-2 rounded-xl text-[12px] leading-relaxed max-w-[78%]",
                 message.role === "user"
-                  ? "bg-white/[0.07] text-white/80 rounded-br-sm"
-                  : "bg-violet-500/[0.08] border border-violet-500/[0.12] text-white/70 rounded-bl-sm",
+                  ? "bg-violet-500/[0.08] text-white/80 rounded-br-sm"
+                  : "bg-fuchsia-500/[0.08] border border-fuchsia-500/[0.12] text-white/70 rounded-bl-sm",
               )}>
                 {message.role === "assistant"
                   ? message.content.replace(/```json[\s\S]*?```/g, "").trim()
@@ -590,14 +590,14 @@ export function GrokChatPanel({
 
           {isLoading && (
             <div className="flex items-end gap-2.5">
-              <div className="w-6 h-6 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
-                <Loader2 className="h-3 w-3 text-violet-400 animate-spin" />
+              <div className="w-6 h-6 rounded-full bg-fuchsia-500/15 flex items-center justify-center shrink-0">
+                <Loader2 className="h-3 w-3 text-fuchsia-400 animate-spin" />
               </div>
-              <div className="px-3 py-2 bg-violet-500/[0.08] border border-violet-500/[0.12] rounded-xl rounded-bl-sm">
+              <div className="px-3 py-2 bg-fuchsia-500/[0.08] border border-fuchsia-500/[0.12] rounded-xl rounded-bl-sm">
                 <div className="flex gap-1 items-center h-4">
-                  <span className="w-1 h-1 rounded-full bg-violet-400/60 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1 h-1 rounded-full bg-violet-400/60 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1 h-1 rounded-full bg-violet-400/60 animate-bounce [animation-delay:300ms]" />
+                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:300ms]" />
                 </div>
               </div>
             </div>
@@ -608,7 +608,7 @@ export function GrokChatPanel({
               <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                 <Mic className="h-3 w-3 text-red-400" />
               </div>
-              <div className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-xl rounded-br-sm text-[12px] text-white/40 italic max-w-[78%]">
+              <div className="px-3 py-2 bg-violet-500/[0.06] border border-violet-500/[0.1] rounded-xl rounded-br-sm text-[12px] text-white/40 italic max-w-[78%]">
                 {interimTranscript}…
               </div>
             </div>
@@ -619,12 +619,12 @@ export function GrokChatPanel({
       </ScrollArea>
 
       {/* Sample prompts — always visible */}
-      <div className="px-3 pt-2.5 pb-2 border-t border-white/[0.04] flex flex-col gap-2">
+      <div className="px-3 pt-2.5 pb-2 border-t border-violet-500/[0.06] flex flex-col gap-2">
         {/* Primary CTA */}
         <button
           onClick={() => sendMessage("Create a smooth transition between the two decks")}
           disabled={isLoading}
-          className="w-full py-2 rounded-lg text-[12px] font-semibold bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 hover:text-violet-200 border border-violet-500/25 hover:border-violet-500/50 disabled:opacity-40 transition-all"
+          className="w-full py-2 rounded-lg text-[12px] font-semibold bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 hover:text-fuchsia-200 border border-fuchsia-500/25 hover:border-fuchsia-500/50 disabled:opacity-40 transition-all"
         >
           Smooth Transition
         </button>
@@ -635,7 +635,7 @@ export function GrokChatPanel({
               key={label}
               onClick={() => sendMessage(prompt)}
               disabled={isLoading}
-              className="px-2.5 py-1 rounded-md text-[10px] bg-white/[0.04] text-white/35 hover:bg-white/[0.07] hover:text-white/60 border border-white/[0.05] hover:border-violet-500/20 disabled:opacity-40 transition-all"
+              className="px-2.5 py-1 rounded-md text-[10px] bg-violet-500/[0.06] text-white/35 hover:bg-violet-500/[0.08] hover:text-white/60 border border-white/[0.05] hover:border-fuchsia-500/20 disabled:opacity-40 transition-all"
             >
               {label}
             </button>
@@ -644,7 +644,7 @@ export function GrokChatPanel({
       </div>
 
       {/* Input */}
-      <div className="border-t border-white/[0.04] p-3">
+      <div className="border-t border-violet-500/[0.06] p-3">
         {voiceError && (
           <p className="text-[11px] text-red-400/70 mb-2 px-1">{voiceError}</p>
         )}
@@ -656,7 +656,7 @@ export function GrokChatPanel({
               "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all border",
               isListening
                 ? "bg-red-500/10 border-red-500/30 text-red-400"
-                : "bg-white/[0.04] border-white/[0.06] text-white/30 hover:text-white/50 hover:bg-white/[0.06]",
+                : "bg-violet-500/[0.06] border-white/[0.06] text-violet-200/30 hover:text-violet-200/50 hover:bg-white/[0.06]",
             )}
             title={isListening ? "Stop listening" : "Voice input"}
           >
@@ -668,13 +668,13 @@ export function GrokChatPanel({
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               placeholder="Ask Grok anything..."
-              className="flex-1 h-9 px-3 text-[12px] bg-white/[0.04] border border-white/[0.06] rounded-xl text-white/70 placeholder:text-white/20 focus:outline-none focus:border-violet-500/30 transition-colors"
+              className="flex-1 h-9 px-3 text-[12px] bg-violet-500/[0.06] border border-violet-500/[0.1] rounded-xl text-white/70 placeholder:text-white/20 focus:outline-none focus:border-fuchsia-500/30 transition-colors"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={isLoading || !textInput.trim()}
-              className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-violet-500/15 border border-violet-500/20 text-violet-400 hover:bg-violet-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-fuchsia-500/15 border border-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
               <Send className="h-3.5 w-3.5" />
             </button>

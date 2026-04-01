@@ -20,10 +20,10 @@ export function MobileVisualizerDock({
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center lg:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center xl:hidden"
       style={{ paddingBottom: "max(0.65rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="pointer-events-auto rounded-full border border-white/[0.08] bg-[#020207]/75 px-2 py-1.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto rounded-full bg-[#150535]/90 px-2 py-1.5 shadow-[0_0_20px_rgba(185,103,255,0.08)] border border-violet-500/[0.1] backdrop-blur-sm">
         <VisualizerControls
           compact
           musicObject={musicObject}
