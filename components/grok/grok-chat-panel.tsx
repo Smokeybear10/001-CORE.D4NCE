@@ -8,7 +8,7 @@ import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
 import type { SongStructure } from "@/lib/song-structure"
 import { structureToPromptText, findNextExitPoint, findBestEntryPoint } from "@/lib/song-structure"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Mic, MicOff, Send, Loader2, Sparkles } from "lucide-react"
+import { Mic, MicOff, Send } from "lucide-react"
 import type { AIModelId } from "@/lib/ai-model"
 import { cn } from "@/lib/utils"
 import { deepMerge } from "@/lib/utils"
@@ -488,32 +488,115 @@ export function GrokChatPanel({
 
   const audioDescription = audioSnapshot ? describeAudioState(audioSnapshot) : "Silence"
 
-  const samplePrompts = [
-    { label: "Match tempos", prompt: "Match the BPM of both decks" },
-    { label: "Drop the bass", prompt: "Drop the bass on deck A" },
-    { label: "Boost energy", prompt: "Raise the energy — increase the high EQ and add some reverb" },
-  ]
-
   return (
-    <div className="flex flex-col h-full rounded-2xl bg-[#150535] border border-violet-500/[0.1] overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-violet-500/[0.06]">
-        <div className="flex items-center gap-2.5">
-          <div className={cn(
-            "w-6 h-6 rounded-full flex items-center justify-center",
-            isListening ? "bg-red-500/20" : "bg-fuchsia-500/15",
-          )}>
-            <Sparkles className={cn("h-3 w-3", isListening ? "text-red-400" : "text-fuchsia-400")} />
-          </div>
-          {isListening && (
-            <span className="flex items-center gap-1 text-[10px] text-red-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-              Listening
-            </span>
+      {/* Messages */}
+      <ScrollArea className="flex-1">
+        <div className="px-3 pt-2 pb-3 space-y-2">
+          {localMessages.length === 0 && (
+            <div className="pt-4 pb-2 space-y-3">
+              <p className="text-[10px] font-mono text-violet-300/25 tracking-wide">
+                Control the mix with text or voice.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { label: "Transition", prompt: "Create a smooth transition between the two decks" },
+                  { label: "Match BPM", prompt: "Match the BPM of both decks" },
+                  { label: "Drop bass", prompt: "Drop the bass on deck A" },
+                  { label: "Boost energy", prompt: "Raise the energy — increase the high EQ and add some reverb" },
+                ].map(({ label, prompt }) => (
+                  <button
+                    key={label}
+                    onClick={() => sendMessage(prompt)}
+                    disabled={isLoading}
+                    className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/40 hover:text-fuchsia-300/70 bg-violet-500/[0.04] hover:bg-fuchsia-500/[0.08] border border-violet-500/[0.08] hover:border-fuchsia-500/20 disabled:opacity-30 transition-all text-left"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
+
+          {localMessages.map((message) => (
+            <div key={message.id} className={cn("text-[11px] leading-relaxed", message.role === "user" ? "text-right" : "")}>
+              {message.role === "user" ? (
+                <span className="inline-block px-2.5 py-1.5 rounded-lg bg-violet-500/[0.08] text-white/60 max-w-[85%]">
+                  {message.content}
+                </span>
+              ) : (
+                <div className="text-white/55 px-0.5">
+                  {message.content.replace(/```json[\s\S]*?```/g, "").trim() || (
+                    <span className="text-violet-300/20 italic">Processing...</span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {isLoading && (
+            <div className="flex gap-1.5 items-center px-0.5 h-5">
+              <span className="w-1 h-1 rounded-full bg-fuchsia-400/50 animate-bounce [animation-delay:0ms]" />
+              <span className="w-1 h-1 rounded-full bg-fuchsia-400/50 animate-bounce [animation-delay:150ms]" />
+              <span className="w-1 h-1 rounded-full bg-fuchsia-400/50 animate-bounce [animation-delay:300ms]" />
+            </div>
+          )}
+
+          {interimTranscript && (
+            <div className="text-[11px] text-right">
+              <span className="inline-block px-2.5 py-1.5 rounded-lg bg-red-500/[0.06] text-white/30 italic border border-red-500/10">
+                {interimTranscript}...
+              </span>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
-        <div className="flex gap-1">
+      </ScrollArea>
+
+      {/* Input */}
+      <div className="px-2.5 pb-2.5 pt-1.5">
+        {voiceError && (
+          <p className="text-[10px] text-red-400/60 mb-1.5 px-0.5">{voiceError}</p>
+        )}
+        {isListening && (
+          <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+            <span className="text-[9px] font-mono text-red-400/60">Listening...</span>
+          </div>
+        )}
+        <form onSubmit={handleTextSubmit} className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={toggleListening}
+            disabled={!isSupported}
+            className={cn(
+              "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+              isListening
+                ? "bg-red-500/15 text-red-400"
+                : "text-violet-300/25 hover:text-violet-300/45 hover:bg-violet-500/[0.06]",
+            )}
+          >
+            {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+          </button>
+          <input
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            placeholder="Ask anything..."
+            className="flex-1 h-8 px-2.5 text-[11px] font-mono bg-transparent border border-violet-500/[0.1] rounded-lg text-white/60 placeholder:text-violet-300/20 focus:outline-none focus:border-fuchsia-500/25 transition-colors"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !textInput.trim()}
+            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-fuchsia-400/50 hover:text-fuchsia-400/80 hover:bg-fuchsia-500/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+          >
+            <Send className="h-3 w-3" />
+          </button>
+        </form>
+        {/* Model selector — tiny, out of the way */}
+        <div className="flex gap-1 mt-1.5 px-0.5">
           {([
             { id: "sonnet" as const, label: "Sonnet" },
             { id: "haiku" as const, label: "Haiku" },
@@ -523,164 +606,16 @@ export function GrokChatPanel({
               key={id}
               onClick={() => setSelectedModel(id)}
               className={cn(
-                "px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors",
+                "px-1.5 py-0.5 rounded text-[8px] font-mono transition-colors",
                 selectedModel === id
-                  ? "bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30"
-                  : "text-violet-200/30 hover:text-violet-200/50 border border-transparent",
+                  ? "text-fuchsia-400/50"
+                  : "text-violet-300/15 hover:text-violet-300/30",
               )}
             >
               {label}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Messages */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
-          {localMessages.length === 0 && (
-            <div className="flex flex-col items-center justify-center pt-8 pb-2">
-              <button
-                onClick={toggleListening}
-                disabled={!isSupported}
-                className={cn(
-                  "w-14 h-14 mb-3 rounded-full flex items-center justify-center transition-all border",
-                  isListening
-                    ? "bg-red-500/10 border-red-500/30 text-red-400"
-                    : "bg-pink-500/10 border-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/15 hover:border-fuchsia-500/30",
-                )}
-              >
-                <Mic className="h-6 w-6" />
-              </button>
-              <p className="text-[11px] text-violet-200/25 tracking-wide">Ask Grok to control the mix</p>
-            </div>
-          )}
-
-          {localMessages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                "flex gap-2.5 items-end",
-                message.role === "user" ? "flex-row-reverse" : "flex-row",
-              )}
-            >
-              <div className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5",
-                message.role === "user" ? "bg-violet-500/10" : "bg-fuchsia-500/15",
-              )}>
-                {message.role === "user"
-                  ? <Mic className="h-3 w-3 text-violet-200/50" />
-                  : <Sparkles className="h-3 w-3 text-fuchsia-400" />
-                }
-              </div>
-
-              <div className={cn(
-                "px-3 py-2 rounded-xl text-[12px] leading-relaxed max-w-[78%]",
-                message.role === "user"
-                  ? "bg-violet-500/[0.08] text-white/80 rounded-br-sm"
-                  : "bg-fuchsia-500/[0.08] border border-fuchsia-500/[0.12] text-white/70 rounded-bl-sm",
-              )}>
-                {message.role === "assistant"
-                  ? message.content.replace(/```json[\s\S]*?```/g, "").trim()
-                  : message.content
-                }
-              </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex items-end gap-2.5">
-              <div className="w-6 h-6 rounded-full bg-fuchsia-500/15 flex items-center justify-center shrink-0">
-                <Loader2 className="h-3 w-3 text-fuchsia-400 animate-spin" />
-              </div>
-              <div className="px-3 py-2 bg-fuchsia-500/[0.08] border border-fuchsia-500/[0.12] rounded-xl rounded-bl-sm">
-                <div className="flex gap-1 items-center h-4">
-                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1 h-1 rounded-full bg-fuchsia-400/60 animate-bounce [animation-delay:300ms]" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {interimTranscript && (
-            <div className="flex items-end gap-2.5 flex-row-reverse">
-              <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                <Mic className="h-3 w-3 text-red-400" />
-              </div>
-              <div className="px-3 py-2 bg-violet-500/[0.06] border border-violet-500/[0.1] rounded-xl rounded-br-sm text-[12px] text-white/40 italic max-w-[78%]">
-                {interimTranscript}…
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
-
-      {/* Sample prompts — always visible */}
-      <div className="px-3 pt-2.5 pb-2 border-t border-violet-500/[0.06] flex flex-col gap-2">
-        {/* Primary CTA */}
-        <button
-          onClick={() => sendMessage("Create a smooth transition between the two decks")}
-          disabled={isLoading}
-          className="w-full py-2 rounded-lg text-[12px] font-semibold bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 hover:text-fuchsia-200 border border-fuchsia-500/25 hover:border-fuchsia-500/50 disabled:opacity-40 transition-all"
-        >
-          Smooth Transition
-        </button>
-        {/* Secondary chips */}
-        <div className="flex flex-wrap gap-1.5">
-          {samplePrompts.map(({ label, prompt }) => (
-            <button
-              key={label}
-              onClick={() => sendMessage(prompt)}
-              disabled={isLoading}
-              className="px-2.5 py-1 rounded-md text-[10px] bg-violet-500/[0.06] text-white/35 hover:bg-violet-500/[0.08] hover:text-white/60 border border-white/[0.05] hover:border-fuchsia-500/20 disabled:opacity-40 transition-all"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="border-t border-violet-500/[0.06] p-3">
-        {voiceError && (
-          <p className="text-[11px] text-red-400/70 mb-2 px-1">{voiceError}</p>
-        )}
-        <div className="flex gap-2">
-          <button
-            onClick={toggleListening}
-            disabled={!isSupported}
-            className={cn(
-              "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all border",
-              isListening
-                ? "bg-red-500/10 border-red-500/30 text-red-400"
-                : "bg-violet-500/[0.06] border-white/[0.06] text-violet-200/30 hover:text-violet-200/50 hover:bg-white/[0.06]",
-            )}
-            title={isListening ? "Stop listening" : "Voice input"}
-          >
-            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-
-          <form onSubmit={handleTextSubmit} className="flex-1 flex gap-2">
-            <input
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Ask Grok anything..."
-              className="flex-1 h-9 px-3 text-[12px] bg-violet-500/[0.06] border border-violet-500/[0.1] rounded-xl text-white/70 placeholder:text-white/20 focus:outline-none focus:border-fuchsia-500/30 transition-colors"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !textInput.trim()}
-              className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-fuchsia-500/15 border border-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </button>
-          </form>
-        </div>
-
       </div>
     </div>
   )

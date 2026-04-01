@@ -4,7 +4,7 @@ import { useState } from "react"
 import type { MusicObject } from "@/lib/types"
 import type { TransitionState } from "@/lib/music-engine"
 import { Slider } from "@/components/ui/slider"
-import { Shuffle, Volume2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Shuffle, Volume2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface MixerPanelProps {
@@ -66,20 +66,7 @@ export function MixerPanel({
   trackALoaded, trackBLoaded,
 }: MixerPanelProps) {
   const [tab, setTab] = useState<MixerTab>("eq")
-  const [collapsed, setCollapsed] = useState(false)
   const crossfader = musicObject.crossfader ?? 0.5
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={() => setCollapsed(false)}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-25 hidden sm:flex h-16 w-5 items-center justify-center rounded-r-lg bg-[#150535]/90 border border-l-0 border-violet-500/[0.12] shadow-[0_0_20px_rgba(185,103,255,0.06)] text-violet-300/30 hover:text-violet-300/50 transition-all"
-      >
-        <ChevronRight className="h-3 w-3" />
-      </button>
-    )
-  }
 
   const tabs: { id: MixerTab; label: string }[] = [
     { id: "eq", label: "EQ" },
@@ -89,22 +76,9 @@ export function MixerPanel({
   ]
 
   return (
-    <aside className="absolute left-2 top-[52px] bottom-[68px] z-25 hidden sm:flex w-[200px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-3.5 pt-3.5 pb-2">
-        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-violet-300/40">Mix</span>
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          className="flex h-5 w-5 items-center justify-center text-violet-300/30 hover:text-violet-300/50 transition-colors"
-        >
-          <ChevronLeft className="h-3 w-3" />
-        </button>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* BPM */}
-      <div className="flex items-center justify-between px-3.5 pb-2">
+      <div className="flex items-center justify-between px-3 pt-1.5 pb-1.5">
         <div className="flex items-center gap-1">
           <span className="text-[11px] font-mono text-fuchsia-400/65 tabular-nums">{bpmA ?? "—"}</span>
           {camelotA && <span className="text-[9px] font-mono text-amber-300/40">{camelotA}</span>}
@@ -116,7 +90,7 @@ export function MixerPanel({
       </div>
 
       {/* Crossfader */}
-      <div className="px-3.5 pb-2">
+      <div className="px-3 pb-1.5">
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-mono text-fuchsia-400/45">A</span>
           <Slider value={[crossfader * 100]} onValueChange={([v]) => onCrossfadeChange(v / 100)} max={100} step={1} className="flex-1" />
@@ -125,7 +99,7 @@ export function MixerPanel({
       </div>
 
       {/* Transition */}
-      <div className="px-3.5 pb-2">
+      <div className="px-3 pb-1.5">
         {transitionState.isActive ? (
           <button
             type="button"
@@ -153,10 +127,10 @@ export function MixerPanel({
         )}
       </div>
 
-      <div className="mx-3.5 h-px bg-violet-500/[0.06]" />
+      <div className="mx-3 h-px bg-violet-500/[0.06]" />
 
       {/* Tabs */}
-      <div className="flex px-3.5 py-1.5">
+      <div className="flex px-3 py-1">
         {tabs.map(({ id, label }) => (
           <button
             key={id}
@@ -173,7 +147,7 @@ export function MixerPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3.5 pb-3 space-y-2.5">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-2 space-y-2">
         {tab === "eq" && (
           <>
             <div className="grid grid-cols-3 gap-1">
@@ -298,6 +272,6 @@ export function MixerPanel({
           <Slider value={[(musicObject.masterGain ?? 0.8) * 100]} onValueChange={([v]) => onMasterGainChange(v / 100)} max={100} step={1} />
         </div>
       </div>
-    </aside>
+    </div>
   )
 }

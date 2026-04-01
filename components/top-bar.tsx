@@ -1,7 +1,7 @@
 "use client"
 
 import type { MusicObject } from "@/lib/types"
-import { Disc3, Sparkles, HelpCircle, Library } from "lucide-react"
+import { Disc3, Sparkles, HelpCircle, Library, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface TopBarProps {
@@ -12,6 +12,8 @@ interface TopBarProps {
   onToggleAI: () => void
   libraryOpen: boolean
   onToggleLibrary: () => void
+  mixerOpen: boolean
+  onToggleMixer: () => void
   onShowHelp: () => void
 }
 
@@ -20,6 +22,8 @@ export function TopBar({
   onToggleAI,
   libraryOpen,
   onToggleLibrary,
+  mixerOpen,
+  onToggleMixer,
   onShowHelp,
 }: TopBarProps) {
   return (
@@ -35,6 +39,19 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={onToggleMixer}
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
+            mixerOpen
+              ? "text-violet-300/60"
+              : "text-violet-300/35 hover:text-violet-300/60",
+          )}
+          title="Mixer"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
         <button
           type="button"
           onClick={onToggleLibrary}

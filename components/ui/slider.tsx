@@ -39,13 +39,13 @@ function Slider({
       <SliderPrimitive.Track
         data-slot="slider-track"
         className={
-          'relative grow overflow-hidden rounded-full bg-violet-500/[0.08] data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1'
+          'relative grow overflow-hidden rounded-full bg-violet-500/[0.15] data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1'
         }
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={
-            'absolute bg-gradient-to-r from-fuchsia-500/40 to-violet-400/40 data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full data-[orientation=vertical]:bg-gradient-to-t'
+            'absolute bg-gradient-to-r from-fuchsia-500/65 to-violet-400/55 data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full data-[orientation=vertical]:bg-gradient-to-t'
           }
         />
       </SliderPrimitive.Track>
