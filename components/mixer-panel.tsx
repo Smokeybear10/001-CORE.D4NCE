@@ -130,7 +130,7 @@ export function MixerPanel({
           <button
             type="button"
             onClick={onCancelTransition}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[9px] font-mono uppercase tracking-widest text-red-400/70 hover:text-red-400 transition-all"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[9px] font-mono uppercase tracking-widest text-red-400/70 hover:text-red-400 transition-all"
           >
             <span className="h-1 w-1 rounded-full bg-red-400 animate-pulse shadow-[0_0_6px_rgba(248,113,113,0.4)]" />
             {Math.round(transitionState.progress * 100)}%
@@ -141,7 +141,7 @@ export function MixerPanel({
             onClick={onTransition}
             disabled={!trackALoaded || !trackBLoaded}
             className={cn(
-              "flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[9px] font-mono uppercase tracking-widest transition-all disabled:opacity-10",
+              "flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[9px] font-mono uppercase tracking-widest transition-all disabled:opacity-10",
               trackALoaded && trackBLoaded
                 ? "text-fuchsia-400/50 hover:text-fuchsia-400/80 hover:bg-fuchsia-400/[0.06] hover:shadow-[0_0_16px_rgba(246,46,151,0.15)]"
                 : "text-violet-300/20 hover:text-violet-300/35",
