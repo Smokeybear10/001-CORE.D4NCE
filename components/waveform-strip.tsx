@@ -51,8 +51,8 @@ export function WaveformStrip({
   const loopStartPct = loop && duration > 0 ? (loop.startTime / duration) * 100 : null
   const loopEndPct = loop && duration > 0 ? (loop.endTime / duration) * 100 : null
 
-  // Deck colors — fuchsia for A, cyan for B
-  const playedColor = isA ? "rgba(246,46,151," : "rgba(1,205,254,"
+  // Deck colors — amber for A, cyan for B
+  const playedColor = isA ? "rgba(251,191,36," : "rgba(1,205,254,"
   const unplayedColor = "rgba(185,103,255,"
 
   return (
@@ -61,7 +61,7 @@ export function WaveformStrip({
         "group relative flex-1 min-w-0 h-[56px] sm:h-[64px] rounded-xl overflow-hidden transition-all",
         "bg-[#150535]/80 backdrop-blur-sm border border-violet-500/[0.1]",
         isPlaying && (isA
-          ? "shadow-[0_0_24px_rgba(246,46,151,0.15)] border-fuchsia-500/20"
+          ? "shadow-[0_0_24px_rgba(251,191,36,0.15)] border-amber-500/20"
           : "shadow-[0_0_24px_rgba(1,205,254,0.15)] border-cyan-500/20"
         ),
       )}
@@ -71,7 +71,7 @@ export function WaveformStrip({
         <div className="flex items-center gap-1.5 min-w-0">
           <span className={cn(
             "shrink-0 text-[9px] font-mono font-bold",
-            isA ? "text-fuchsia-400/60 neon-pink" : "text-cyan-400/60 neon-cyan",
+            isA ? "text-amber-400/60 neon-pink" : "text-cyan-400/60 neon-cyan",
           )}>
             {deck}
           </span>
@@ -120,7 +120,7 @@ export function WaveformStrip({
             const x = duration > 0 ? (cue.time / duration) * bars : 0
             return (
               <g key={cue.id}>
-                <line x1={x} y1={0} x2={x} y2={40} stroke={isA ? "rgba(246,46,151,0.4)" : "rgba(1,205,254,0.4)"} strokeWidth={0.5} />
+                <line x1={x} y1={0} x2={x} y2={40} stroke={isA ? "rgba(251,191,36,0.4)" : "rgba(1,205,254,0.4)"} strokeWidth={0.5} />
               </g>
             )
           })}
@@ -149,7 +149,7 @@ export function WaveformStrip({
         className={cn(
           "absolute left-3 bottom-1 z-10 flex h-5 w-5 items-center justify-center rounded-full transition-all",
           "opacity-0 group-hover:opacity-100 pointer-events-auto",
-          isA ? "text-fuchsia-400/60 hover:text-fuchsia-400" : "text-cyan-400/60 hover:text-cyan-400",
+          isA ? "text-amber-400/60 hover:text-amber-400" : "text-cyan-400/60 hover:text-cyan-400",
           !track && "hidden",
         )}
       >

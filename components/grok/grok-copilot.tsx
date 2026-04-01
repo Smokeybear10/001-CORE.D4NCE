@@ -214,9 +214,9 @@ export function GrokCopilot({
       {/* Header */}
       <div className="p-3 border-b border-violet-500/[0.1] flex items-center gap-2">
         <div className="relative">
-          <Sparkles className="h-4 w-4 text-fuchsia-400" />
+          <Sparkles className="h-4 w-4 text-amber-400" />
           <div className="absolute inset-0 animate-pulse">
-            <Sparkles className="h-4 w-4 text-fuchsia-400 opacity-50" />
+            <Sparkles className="h-4 w-4 text-amber-400 opacity-50" />
           </div>
         </div>
         <h2 className="text-sm font-semibold text-violet-100">Grok Co-Pilot</h2>
@@ -250,7 +250,7 @@ export function GrokCopilot({
             <div className="flex items-center gap-2 text-xs">
               <div
                 className={cn(
-                  "px-2 py-1 rounded bg-fuchsia-500/20 text-fuchsia-300 truncate max-w-[100px]",
+                  "px-2 py-1 rounded bg-amber-500/20 text-amber-300 truncate max-w-[100px]",
                   !trackA && "opacity-50",
                 )}
               >
@@ -277,7 +277,7 @@ export function GrokCopilot({
             <Button
               onClick={generateTransition}
               disabled={isGeneratingTransition || !trackA || !trackB}
-              className="w-full bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500"
+              className="w-full bg-gradient-to-r from-amber-500 to-cyan-600 hover:from-amber-400 hover:to-cyan-500"
             >
               {isGeneratingTransition ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -288,9 +288,9 @@ export function GrokCopilot({
             </Button>
 
             {lastTransitionPlan && (
-              <div className="p-3 rounded-lg bg-violet-500/[0.06] border border-fuchsia-500/20">
+              <div className="p-3 rounded-lg bg-violet-500/[0.06] border border-amber-500/20">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-fuchsia-300">Transition Plan</p>
+                  <p className="text-xs font-semibold text-amber-300">Transition Plan</p>
                   <span className="text-xs text-violet-200/35">{lastTransitionPlan.durationSeconds}s</span>
                 </div>
                 {lastTransitionPlan.explanation && (
@@ -300,7 +300,7 @@ export function GrokCopilot({
                   <Button
                     size="sm"
                     onClick={() => onApplyTransition(lastTransitionPlan)}
-                    className="flex-1 text-xs bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500"
+                    className="flex-1 text-xs bg-gradient-to-r from-amber-500 to-cyan-600 hover:from-amber-400 hover:to-cyan-500"
                   >
                     <Zap className="h-3 w-3 mr-1" />
                     Apply Transition
@@ -325,7 +325,7 @@ export function GrokCopilot({
             <Button
               onClick={generatePreset}
               disabled={isGeneratingPreset || !presetPrompt.trim()}
-              className="w-full bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500"
+              className="w-full bg-gradient-to-r from-amber-500 to-cyan-600 hover:from-amber-400 hover:to-cyan-500"
             >
               {isGeneratingPreset ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -341,7 +341,7 @@ export function GrokCopilot({
               {presets.map((preset) => (
                 <div
                   key={preset.id}
-                  className="p-2 rounded-lg bg-violet-500/[0.06] border border-violet-500/[0.1] hover:border-fuchsia-500/30 transition-colors"
+                  className="p-2 rounded-lg bg-violet-500/[0.06] border border-violet-500/[0.1] hover:border-amber-500/30 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -370,7 +370,7 @@ export function GrokCopilot({
             <Button
               onClick={getRecommendations}
               disabled={isRecommending || (!trackA && !trackB)}
-              className="w-full bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500"
+              className="w-full bg-gradient-to-r from-amber-500 to-cyan-600 hover:from-amber-400 hover:to-cyan-500"
             >
               {isRecommending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Music2 className="h-4 w-4 mr-2" />}
               Find Next Tracks
@@ -398,7 +398,7 @@ export function GrokCopilot({
                         size="sm"
                         variant="ghost"
                         onClick={() => onLoadTrack(track, "A")}
-                        className="h-5 px-2 text-[10px] text-fuchsia-400"
+                        className="h-5 px-2 text-[10px] text-amber-400"
                       >
                         Load A
                       </Button>
@@ -435,7 +435,7 @@ export function GrokCopilot({
                       key={msg.id}
                       className={cn(
                         "p-2 rounded-lg text-xs",
-                        msg.type === "tip" && "bg-fuchsia-500/10 border border-fuchsia-500/20 text-violet-100/85",
+                        msg.type === "tip" && "bg-amber-500/10 border border-amber-500/20 text-violet-100/85",
                         msg.type === "action" && "bg-cyan-500/10 border border-cyan-500/20 text-cyan-100/90",
                         msg.type === "info" && "bg-violet-500/[0.06] border border-violet-500/[0.1] text-violet-100/65",
                       )}

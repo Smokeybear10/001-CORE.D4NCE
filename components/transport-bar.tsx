@@ -74,7 +74,7 @@ function InlineWaveform({
   const loopStartPct = loop && duration > 0 ? (loop.startTime / duration) * 100 : null
   const loopEndPct = loop && duration > 0 ? (loop.endTime / duration) * 100 : null
 
-  const playedColor = isA ? "rgba(246,46,151," : "rgba(1,205,254,"
+  const playedColor = isA ? "rgba(251,191,36," : "rgba(1,205,254,"
   const unplayedColor = "rgba(185,103,255,"
 
   return (
@@ -82,7 +82,7 @@ function InlineWaveform({
       "group relative flex-1 min-w-0 h-[48px] rounded-lg overflow-hidden transition-all cursor-pointer",
       "bg-[#150535]/70 border border-violet-500/[0.1]",
       isPlaying && (isA
-        ? "border-fuchsia-500/20 shadow-[0_0_16px_rgba(246,46,151,0.15)]"
+        ? "border-amber-500/20 shadow-[0_0_16px_rgba(251,191,36,0.12)]"
         : "border-cyan-500/20 shadow-[0_0_16px_rgba(1,205,254,0.15)]"
       ),
     )}>
@@ -91,7 +91,7 @@ function InlineWaveform({
         <div className="flex items-center gap-1 min-w-0">
           <span className={cn(
             "shrink-0 text-[9px] font-mono font-bold",
-            isA ? "text-fuchsia-400/65" : "text-cyan-400/65",
+            isA ? "text-amber-400/65" : "text-cyan-400/65",
           )}>{deck}</span>
           {track && (
             <span className="text-[10px] text-amber-200/50 truncate">{track.title}</span>
@@ -145,7 +145,7 @@ function InlineWaveform({
             const x = duration > 0 ? (cue.time / duration) * bars : 0
             return (
               <line key={cue.id} x1={x} y1={0} x2={x} y2={28}
-                stroke={isA ? "rgba(246,46,151,0.35)" : "rgba(1,205,254,0.35)"} strokeWidth={0.4}
+                stroke={isA ? "rgba(251,191,36,0.35)" : "rgba(1,205,254,0.35)"} strokeWidth={0.4}
               />
             )
           })}
@@ -174,7 +174,7 @@ function InlineWaveform({
         className={cn(
           "absolute left-2 bottom-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full transition-all",
           "opacity-0 group-hover:opacity-100 pointer-events-auto",
-          isA ? "text-fuchsia-400/60 hover:text-fuchsia-400" : "text-cyan-400/60 hover:text-cyan-400",
+          isA ? "text-amber-400/60 hover:text-amber-400" : "text-cyan-400/60 hover:text-cyan-400",
           !track && "hidden",
         )}
       >
