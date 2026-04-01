@@ -95,13 +95,13 @@ function drawBackground(
   // 2. Retro sun
   const horizonY = H * 0.55
   const baseSunR = Math.min(W, H) * 0.13
-  const sunR = baseSunR * (1 + energy * 0.06 + beat * 0.03)
+  const sunR = baseSunR * (1 + energy * 0.15 + beat * 0.1)
   const sunCX = W / 2
 
   // Sun glow
   const sunGlow = ctx.createRadialGradient(sunCX, horizonY, sunR * 0.3, sunCX, horizonY, sunR * 3)
-  sunGlow.addColorStop(0, `rgba(249,171,83,${0.12 + energy * 0.08})`)
-  sunGlow.addColorStop(0.4, `rgba(246,46,151,${0.04 + energy * 0.03})`)
+  sunGlow.addColorStop(0, `rgba(249,171,83,${0.15 + energy * 0.2 + beat * 0.12})`)
+  sunGlow.addColorStop(0.4, `rgba(246,46,151,${0.06 + energy * 0.08 + beat * 0.05})`)
   sunGlow.addColorStop(1, "rgba(246,46,151,0)")
   ctx.fillStyle = sunGlow
   ctx.fillRect(0, 0, W, H)
@@ -123,16 +123,6 @@ function drawBackground(
   ctx.arc(sunCX, horizonY, sunR, 0, Math.PI * 2)
   ctx.fill()
 
-  // Venetian blind cuts
-  ctx.globalCompositeOperation = "destination-out"
-  const numCuts = 8
-  for (let i = 1; i <= numCuts; i++) {
-    const cutY = horizonY - sunR + (sunR * 2 * i) / (numCuts + 1)
-    const lineH = 0.8 + i * 0.7
-    ctx.fillStyle = "rgba(0,0,0,0.85)"
-    ctx.fillRect(sunCX - sunR - 2, cutY, sunR * 2 + 4, lineH)
-  }
-  ctx.globalCompositeOperation = "source-over"
   ctx.restore()
 
   // 3. Scrolling perspective grid floor
@@ -140,7 +130,7 @@ function drawBackground(
   const gridH = H - gridTop
 
   // Scrolling speed scales with energy
-  const scrollSpeed = 0.3 + energy * 0.8 + beat * 0.2
+  const scrollSpeed = 0.4 + energy * 1.6 + beat * 0.6
   const scrollOffset = (t * scrollSpeed) % 1
 
   // Horizontal grid lines — scroll toward viewer
@@ -150,9 +140,9 @@ function drawBackground(
     const p = Math.pow(rawP, 2.2)
     const y = gridTop + gridH * p
     if (y <= gridTop) continue
-    const alpha = (0.015 + p * 0.06) * (1 + energy * 0.5 + beat * 0.3)
-    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.12)})`
-    ctx.lineWidth = 0.5 + p * 0.6
+    const alpha = (0.02 + p * 0.08) * (1 + energy * 1.2 + beat * 0.8)
+    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.2)})`
+    ctx.lineWidth = 0.5 + p * 0.8 + beat * 0.4
     ctx.beginPath()
     ctx.moveTo(0, y)
     ctx.lineTo(W, y)
@@ -166,8 +156,8 @@ function drawBackground(
     if (i === 0) continue
     const spread = W * 1.8
     const bottomX = vanishX + (i / (numV / 2)) * (spread / 2)
-    const alpha = (0.008 + Math.max(0, 0.035 - Math.abs(i) * 0.001)) * (1 + energy * 0.4)
-    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.06)})`
+    const alpha = (0.01 + Math.max(0, 0.04 - Math.abs(i) * 0.001)) * (1 + energy * 0.8 + beat * 0.3)
+    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.1)})`
     ctx.lineWidth = 0.5
     ctx.beginPath()
     ctx.moveTo(vanishX, gridTop)
@@ -178,10 +168,11 @@ function drawBackground(
   // Horizon glow line
   const horizGlow = ctx.createLinearGradient(0, horizonY - 3, 0, horizonY + 3)
   horizGlow.addColorStop(0, "rgba(246,46,151,0)")
-  horizGlow.addColorStop(0.5, `rgba(246,46,151,${0.2 + energy * 0.2 + beat * 0.15})`)
+  horizGlow.addColorStop(0.5, `rgba(246,46,151,${0.25 + energy * 0.4 + beat * 0.3})`)
   horizGlow.addColorStop(1, "rgba(246,46,151,0)")
   ctx.fillStyle = horizGlow
-  ctx.fillRect(0, horizonY - 3, W, 6)
+  const glowH = 6 + beat * 8 + energy * 4
+  ctx.fillRect(0, horizonY - glowH / 2, W, glowH)
 
   // Stars — flicker more with energy
   const starSeed = 42

@@ -11,8 +11,10 @@ import { TransportBar } from "@/components/transport-bar"
 import { MixerPanel } from "@/components/mixer-panel"
 import { LibraryDrawer } from "@/components/library-drawer"
 import { AIPanel } from "@/components/ai-panel"
+import { DraggableCard } from "@/components/draggable-card"
 import { DjHelpModal } from "@/components/dj/dj-help-modal"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { SlidersHorizontal, Library, Sparkles } from "lucide-react"
 
 export default function DJSystem() {
   const { tracks } = useTracks()
@@ -61,6 +63,7 @@ export default function DJSystem() {
   const [trackB, setTrackB] = useState<Track | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+  const [mixerOpen, setMixerOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [bpmA, setBpmA] = useState<number | null>(null)
   const [bpmB, setBpmB] = useState<number | null>(null)
@@ -325,7 +328,7 @@ export default function DJSystem() {
         </div>
 
 
-        {/* Top bar — floating over visualizer */}
+        {/* Top bar */}
         <TopBar
           musicObject={musicObject}
           onModeChange={(mode) => updateMusicObject({ visualizerMode: mode })}
@@ -334,71 +337,12 @@ export default function DJSystem() {
           onToggleAI={() => setAiOpen(!aiOpen)}
           libraryOpen={libraryOpen}
           onToggleLibrary={() => setLibraryOpen(!libraryOpen)}
+          mixerOpen={mixerOpen}
+          onToggleMixer={() => setMixerOpen(!mixerOpen)}
           onShowHelp={() => setShowHelp(true)}
         />
 
-
-        {/* AI floating panel */}
-        <AIPanel
-          open={aiOpen}
-          onClose={() => setAiOpen(false)}
-          trackA={trackA}
-          trackB={trackB}
-          tracks={tracks}
-          musicObject={musicObject}
-          transitionState={transitionState}
-          isPlayingA={isPlayingA}
-          isPlayingB={isPlayingB}
-          currentTimeA={currentTimeA}
-          currentTimeB={currentTimeB}
-          durationA={durationA}
-          durationB={durationB}
-          structureA={structureA}
-          structureB={structureB}
-          getAnalyserData={getAnalyserData}
-          onApplySettings={(settings) => updateMusicObject(settings)}
-          onApplyPreset={handleApplyPreset}
-          onApplyTransition={handleApplyTransition}
-          onAction={handleVoiceAction}
-          onLoadTrack={handleLoadToDeck}
-          onCancelTransition={cancelTransition}
-          getAudioContext={getAudioContext}
-        />
-
-        {/* Mixer panel — left side */}
-        <MixerPanel
-          musicObject={musicObject}
-          transitionState={transitionState}
-          bpmA={bpmA}
-          bpmB={bpmB}
-          camelotA={keyA?.camelot ?? null}
-          camelotB={keyB?.camelot ?? null}
-          keyCompatibility={keyCompatibility}
-          onCrossfadeChange={(v) => { setCrossfade(v); updateMusicObject({ crossfader: v }) }}
-          onEQChange={(band, value) => updateMusicObject({ eq: { ...musicObject.eq, [band]: value } })}
-          onFilterChange={(cutoff) => updateMusicObject({ filter: { ...musicObject.filter, cutoff } })}
-          onReverbChange={(v) => updateMusicObject({ reverbAmount: v })}
-          onDelayChange={(v) => updateMusicObject({ delayAmount: v })}
-          onMasterGainChange={(v) => updateMusicObject({ masterGain: v })}
-          onIsolationChange={handleIsolationChange}
-          onFXChange={handleFXChange}
-          onPerDeckEQChange={handlePerDeckEQChange}
-          onTransition={handleQuickTransition}
-          onCancelTransition={cancelTransition}
-          trackALoaded={!!trackA}
-          trackBLoaded={!!trackB}
-        />
-
-        {/* Library drawer */}
-        <LibraryDrawer
-          open={libraryOpen}
-          onClose={() => setLibraryOpen(false)}
-          onLoadToDeck={handleLoadToDeck}
-          trackA={trackA}
-          trackB={trackB}
-        />
-
-        {/* Transport bar — persistent bottom */}
+        {/* Waveform strip — always visible at top */}
         <TransportBar
           trackA={trackA}
           trackB={trackB}
@@ -423,6 +367,95 @@ export default function DJSystem() {
           onPause={pause}
           onSeek={seek}
         />
+
+        {/* Floating draggable cards */}
+        {mixerOpen && (
+          <DraggableCard
+            id="mixer"
+            title="Mix"
+            icon={<SlidersHorizontal className="h-2.5 w-2.5 text-violet-300/30" />}
+            defaultPosition={{ x: 8, y: 120 }}
+            defaultSize={{ width: 200, height: 480 }}
+            onClose={() => setMixerOpen(false)}
+          >
+            <MixerPanel
+              musicObject={musicObject}
+              transitionState={transitionState}
+              bpmA={bpmA}
+              bpmB={bpmB}
+              camelotA={keyA?.camelot ?? null}
+              camelotB={keyB?.camelot ?? null}
+              keyCompatibility={keyCompatibility}
+              onCrossfadeChange={(v) => { setCrossfade(v); updateMusicObject({ crossfader: v }) }}
+              onEQChange={(band, value) => updateMusicObject({ eq: { ...musicObject.eq, [band]: value } })}
+              onFilterChange={(cutoff) => updateMusicObject({ filter: { ...musicObject.filter, cutoff } })}
+              onReverbChange={(v) => updateMusicObject({ reverbAmount: v })}
+              onDelayChange={(v) => updateMusicObject({ delayAmount: v })}
+              onMasterGainChange={(v) => updateMusicObject({ masterGain: v })}
+              onIsolationChange={handleIsolationChange}
+              onFXChange={handleFXChange}
+              onPerDeckEQChange={handlePerDeckEQChange}
+              onTransition={handleQuickTransition}
+              onCancelTransition={cancelTransition}
+              trackALoaded={!!trackA}
+              trackBLoaded={!!trackB}
+            />
+          </DraggableCard>
+        )}
+
+        {libraryOpen && (
+          <DraggableCard
+            id="library"
+            title="Library"
+            icon={<Library className="h-2.5 w-2.5 text-violet-300/30" />}
+            defaultPosition={{ x: typeof window !== "undefined" ? window.innerWidth - 260 : 1020, y: 120 }}
+            defaultSize={{ width: 240, height: 440 }}
+            onClose={() => setLibraryOpen(false)}
+            accentColor="cyan"
+          >
+            <LibraryDrawer
+              onLoadToDeck={handleLoadToDeck}
+              trackA={trackA}
+              trackB={trackB}
+            />
+          </DraggableCard>
+        )}
+
+        {aiOpen && (
+          <DraggableCard
+            id="ai-copilot"
+            title="AI"
+            icon={<Sparkles className="h-2.5 w-2.5 text-fuchsia-400/30" />}
+            defaultPosition={{ x: 8, y: typeof window !== "undefined" ? window.innerHeight - 340 : 380 }}
+            defaultSize={{ width: 340, height: 320 }}
+            onClose={() => setAiOpen(false)}
+            accentColor="fuchsia"
+          >
+            <AIPanel
+              trackA={trackA}
+              trackB={trackB}
+              tracks={tracks}
+              musicObject={musicObject}
+              transitionState={transitionState}
+              isPlayingA={isPlayingA}
+              isPlayingB={isPlayingB}
+              currentTimeA={currentTimeA}
+              currentTimeB={currentTimeB}
+              durationA={durationA}
+              durationB={durationB}
+              structureA={structureA}
+              structureB={structureB}
+              getAnalyserData={getAnalyserData}
+              onApplySettings={(settings) => updateMusicObject(settings)}
+              onApplyPreset={handleApplyPreset}
+              onApplyTransition={handleApplyTransition}
+              onAction={handleVoiceAction}
+              onLoadTrack={handleLoadToDeck}
+              onCancelTransition={cancelTransition}
+              getAudioContext={getAudioContext}
+            />
+          </DraggableCard>
+        )}
 
         <DjHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       </div>
