@@ -58,7 +58,7 @@ function AudioWaveform({
   onSeek: (time: number) => void
 }) {
   const isA = deck === "A"
-  const accentHue = isA ? 265 : 185 // violet vs cyan
+  const accentHue = isA ? 265 : 185 // orange vs sky
 
   const bars = peaks?.length || 200
   const barData = useMemo(() => {
@@ -98,7 +98,7 @@ function AudioWaveform({
             y={0}
             width={((loopEndPct - loopStartPct) / 100) * bars}
             height={50}
-            fill={isA ? "rgba(139,92,246,0.08)" : "rgba(34,211,238,0.08)"}
+            fill={isA ? "rgba(246,46,151,0.08)" : "rgba(1,205,254,0.08)"}
           />
         )}
 
@@ -110,10 +110,10 @@ function AudioWaveform({
           const played = (i / bars) * 100 < progress
           const h = Math.min(24, bar.h)
 
-          // Frequency coloring: bass=blue/violet, mid=green, high=yellow/cyan
+          // Frequency coloring: bass=blue/orange, mid=green, high=yellow/sky
           let r = 120, g = 120, b = 200
           if (bar.bass > bar.mid && bar.bass > bar.high) {
-            r = isA ? 139 : 34; g = isA ? 92 : 211; b = isA ? 246 : 238
+            r = isA ? 232 : 163; g = isA ? 121 : 230; b = isA ? 249 : 53
           } else if (bar.mid > bar.high) {
             r = 74; g = 222; b = 128
           } else {
@@ -146,9 +146,9 @@ function AudioWaveform({
         {loopStartPct !== null && loopEndPct !== null && (
           <>
             <line x1={(loopStartPct / 100) * bars} y1={0} x2={(loopStartPct / 100) * bars} y2={50}
-              stroke={isA ? "#a78bfa" : "#22d3ee"} strokeWidth={1} strokeDasharray="2,2" />
+              stroke={isA ? "#f62e97" : "#01cdfe"} strokeWidth={1} strokeDasharray="2,2" />
             <line x1={(loopEndPct / 100) * bars} y1={0} x2={(loopEndPct / 100) * bars} y2={50}
-              stroke={isA ? "#a78bfa" : "#22d3ee"} strokeWidth={1} strokeDasharray="2,2" />
+              stroke={isA ? "#f62e97" : "#01cdfe"} strokeWidth={1} strokeDasharray="2,2" />
           </>
         )}
 
@@ -180,7 +180,7 @@ export function Deck({
 }: DeckProps) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
   const isA = deck === "A"
-  const accentColor = isA ? "text-violet-400" : "text-cyan-400"
+  const accentColor = isA ? "text-fuchsia-400" : "text-cyan-400"
   const adjustedBPM = bpm ? Math.round(bpm * playbackRate) : null
   const [showCueMenu, setShowCueMenu] = useState(false)
 
@@ -190,9 +190,9 @@ export function Deck({
         "rounded-xl overflow-hidden border transition-all duration-300",
         isPlaying
           ? isA
-            ? "border-violet-500/20 shadow-[0_0_24px_rgba(139,92,246,0.12)]"
-            : "border-cyan-500/20 shadow-[0_0_24px_rgba(34,211,238,0.12)]"
-          : "border-white/[0.06]"
+            ? "border-fuchsia-500/20 shadow-[0_0_24px_rgba(246,46,151,0.12)]"
+            : "border-cyan-500/20 shadow-[0_0_24px_rgba(1,205,254,0.12)]"
+          : "border-violet-500/[0.08]"
       )}
     >
       {/* Top accent bar */}
@@ -200,13 +200,13 @@ export function Deck({
         className={cn(
           "h-[1.5px] w-full transition-opacity duration-300",
           isA
-            ? "bg-gradient-to-r from-violet-500/0 via-violet-500 to-violet-500/0"
+            ? "bg-gradient-to-r from-fuchsia-500/0 via-pink-500 to-fuchsia-500/0"
             : "bg-gradient-to-r from-cyan-400/0 via-cyan-400 to-cyan-400/0",
           isPlaying ? "opacity-80" : "opacity-20"
         )}
       />
 
-      <div className="bg-[#0c0c1a] p-3 flex flex-col gap-2.5">
+      <div className="bg-[#150535] p-3 flex flex-col gap-2.5">
 
         {/* Header row */}
         <div className="flex items-center justify-between">
@@ -214,7 +214,7 @@ export function Deck({
             <span
               className={cn(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold tracking-widest",
-                isA ? "bg-violet-500/15 text-violet-400" : "bg-cyan-500/15 text-cyan-400"
+                isA ? "bg-fuchsia-500/15 text-fuchsia-400" : "bg-cyan-500/15 text-cyan-400"
               )}
             >
               {deck}
@@ -223,7 +223,7 @@ export function Deck({
               <span
                 className={cn(
                   "w-1.5 h-1.5 rounded-full animate-pulse",
-                  isA ? "bg-violet-400" : "bg-cyan-400"
+                  isA ? "bg-fuchsia-400" : "bg-cyan-400"
                 )}
               />
             )}
@@ -235,7 +235,7 @@ export function Deck({
             {camelotKey && (
               <span className={cn(
                 "px-1.5 py-0.5 rounded text-[9px] font-mono font-bold",
-                isA ? "bg-violet-500/10 text-violet-400/70" : "bg-cyan-500/10 text-cyan-400/70"
+                isA ? "bg-fuchsia-500/10 text-fuchsia-400/70" : "bg-cyan-500/10 text-cyan-400/70"
               )}>
                 {camelotKey}
               </span>
@@ -279,7 +279,7 @@ export function Deck({
             className={cn(
               "w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-20 border",
               isA
-                ? "text-violet-400/60 hover:text-violet-300 border-violet-500/20 hover:border-violet-500/40 hover:bg-violet-500/10"
+                ? "text-fuchsia-400/60 hover:text-fuchsia-300 border-fuchsia-500/20 hover:border-fuchsia-500/40 hover:bg-fuchsia-500/10"
                 : "text-cyan-400/60 hover:text-cyan-300 border-cyan-500/20 hover:border-cyan-500/40 hover:bg-cyan-500/10"
             )}
           >
@@ -291,7 +291,7 @@ export function Deck({
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-20 shrink-0 border",
               isA
-                ? "bg-violet-500/15 hover:bg-violet-500/25 text-violet-400 border-violet-500/30"
+                ? "bg-fuchsia-500/15 hover:bg-fuchsia-500/25 text-fuchsia-400 border-fuchsia-500/30"
                 : "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border-cyan-500/30"
             )}
           >
@@ -312,7 +312,7 @@ export function Deck({
               className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center transition-all border",
                 isA
-                  ? "text-violet-400/60 hover:text-violet-300 border-violet-500/20 hover:bg-violet-500/10"
+                  ? "text-fuchsia-400/60 hover:text-fuchsia-300 border-fuchsia-500/20 hover:bg-fuchsia-500/10"
                   : "text-cyan-400/60 hover:text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/10"
               )}
             >
@@ -328,7 +328,7 @@ export function Deck({
               className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center transition-all border",
                 isA
-                  ? "text-violet-400/60 hover:text-violet-300 border-violet-500/20 hover:bg-violet-500/10"
+                  ? "text-fuchsia-400/60 hover:text-fuchsia-300 border-fuchsia-500/20 hover:bg-fuchsia-500/10"
                   : "text-cyan-400/60 hover:text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/10"
               )}
             >
@@ -365,9 +365,9 @@ export function Deck({
                   "flex-1 py-1 rounded text-[9px] font-mono font-bold transition-all border",
                   loop?.active
                     ? isA
-                      ? "border-violet-500/30 bg-violet-500/15 text-violet-400"
+                      ? "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-400"
                       : "border-cyan-500/30 bg-cyan-500/15 text-cyan-400"
-                    : "border-white/[0.06] text-white/30 hover:text-white/50 hover:border-white/10"
+                    : "border-violet-500/[0.08] text-white/30 hover:text-white/50 hover:border-white/10"
                 )}
               >
                 {beats}

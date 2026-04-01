@@ -34,7 +34,7 @@ function Value({ children, highlight }: { children: React.ReactNode; highlight?:
 function CompatibilityBadge({ score }: { score: number }) {
   const color = score >= 0.85 ? "text-emerald-400 bg-emerald-500/10" :
                 score >= 0.7 ? "text-yellow-400 bg-yellow-500/10" :
-                score >= 0.5 ? "text-orange-400 bg-orange-500/10" :
+                score >= 0.5 ? "text-fuchsia-400 bg-fuchsia-500/10" :
                 "text-red-400 bg-red-500/10"
   const label = score >= 0.85 ? "GREAT" :
                 score >= 0.7 ? "GOOD" :
@@ -55,14 +55,14 @@ export function Mixer({
   const crossfader = musicObject.crossfader ?? 0.5
 
   return (
-    <div className="rounded-xl bg-[#0c0c1a] border border-white/[0.06] p-3 flex flex-col gap-3">
+    <div className="rounded-xl bg-[#150535] border border-violet-500/[0.08] p-3 flex flex-col gap-3">
 
       {/* BPM + Key row */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-1.5">
-          <span className="text-[12px] font-mono font-semibold text-violet-400/80 tabular-nums">{bpmA ?? "—"}</span>
+          <span className="text-[12px] font-mono font-semibold text-fuchsia-400/80 tabular-nums">{bpmA ?? "—"}</span>
           {camelotA && (
-            <span className="text-[9px] font-mono text-violet-400/50 bg-violet-500/10 px-1 rounded">{camelotA}</span>
+            <span className="text-[9px] font-mono text-fuchsia-400/50 bg-fuchsia-500/10 px-1 rounded">{camelotA}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -82,7 +82,7 @@ export function Mixer({
       {/* Crossfader */}
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="px-2 py-0.5 rounded bg-violet-500/10 text-[10px] font-bold text-violet-400">A</span>
+          <span className="px-2 py-0.5 rounded bg-fuchsia-500/10 text-[10px] font-bold text-fuchsia-400">A</span>
           <span className="text-[9px] text-white/20 uppercase tracking-widest">XFADE</span>
           <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-400">B</span>
         </div>
@@ -91,7 +91,7 @@ export function Mixer({
 
       {/* Tabs */}
       <Tabs defaultValue="eq" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-7 rounded-lg bg-black/40 border border-white/[0.06] p-0.5">
+        <TabsList className="grid w-full grid-cols-4 h-7 rounded-lg bg-black/40 border border-violet-500/[0.08] p-0.5">
           <TabsTrigger value="eq" className="text-[10px] uppercase tracking-wider data-[state=active]:bg-white/[0.08] data-[state=active]:text-white/80 data-[state=active]:rounded-md text-white/30">EQ</TabsTrigger>
           <TabsTrigger value="fx" className="text-[10px] uppercase tracking-wider data-[state=active]:bg-white/[0.08] data-[state=active]:text-white/80 data-[state=active]:rounded-md text-white/30">FX</TabsTrigger>
           <TabsTrigger value="iso" className="text-[10px] uppercase tracking-wider data-[state=active]:bg-white/[0.08] data-[state=active]:text-white/80 data-[state=active]:rounded-md text-white/30">ISO</TabsTrigger>
@@ -189,7 +189,7 @@ export function Mixer({
                 <div className="grid grid-cols-2 gap-3">
                   {(["A", "B"] as const).map((d) => (
                     <div key={d} className="space-y-1">
-                      <span className={cn("text-[9px] font-mono", d === "A" ? "text-violet-400/60" : "text-cyan-400/60")}>{d}</span>
+                      <span className={cn("text-[9px] font-mono", d === "A" ? "text-fuchsia-400/60" : "text-cyan-400/60")}>{d}</span>
                       <Slider
                         value={[((musicObject.tracks?.[d] as Record<string, number> | null)?.[`${type}Isolation`] ?? 0) * 100]}
                         onValueChange={([v]) => onIsolationChange(d, type, v / 100)}
@@ -213,7 +213,7 @@ export function Mixer({
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "px-1.5 py-0.5 rounded text-[9px] font-bold",
-                    d === "A" ? "bg-violet-500/15 text-violet-400" : "bg-cyan-500/15 text-cyan-400"
+                    d === "A" ? "bg-fuchsia-500/15 text-fuchsia-400" : "bg-cyan-500/15 text-cyan-400"
                   )}>
                     Deck {d}
                   </span>

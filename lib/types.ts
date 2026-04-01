@@ -106,7 +106,7 @@ export interface MusicObject {
 
   visualizerMode: "cymatic" | "tunnel" | "waveform" | "spectrum" | "grok"
   visualSensitivity: number
-  colorScheme: "cyberpunk" | "neon" | "monochrome" | "fire" | "aurora" | "sunset" | "ocean"
+  colorScheme: "neonpunk" | "cyberpunk" | "neon" | "monochrome" | "fire" | "aurora" | "sunset" | "ocean"
 }
 
 export interface TransitionPlan {
@@ -204,7 +204,7 @@ export const defaultMusicObject: MusicObject = {
 
   visualizerMode: "cymatic",
   visualSensitivity: 0.7,
-  colorScheme: "aurora",
+  colorScheme: "neonpunk",
 }
 
 // Camelot wheel for harmonic mixing compatibility

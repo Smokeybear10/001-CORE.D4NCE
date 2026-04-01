@@ -25,15 +25,15 @@ export function DjAppHeader({
   return (
     <header
       className={cn(
-        "z-30 flex w-full shrink-0 items-center justify-between gap-2 border-b border-violet-500/15 bg-[#020207]/90 px-3 backdrop-blur-xl sm:gap-3 sm:px-4",
+        "z-30 flex w-full shrink-0 items-center justify-between gap-2 bg-[#110328]/90 px-3 backdrop-blur-sm sm:gap-3 sm:px-4",
         "min-h-[52px] pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:min-h-[56px]",
-        "lg:grid lg:min-h-[60px] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:px-5 lg:py-0 lg:pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:pt-[max(0.25rem,env(safe-area-inset-top))]",
+        "xl:grid xl:min-h-[60px] xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-center xl:gap-4 xl:px-5 xl:py-0 xl:pb-[max(0.25rem,env(safe-area-inset-bottom))] xl:pt-[max(0.25rem,env(safe-area-inset-top))]",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:col-start-1 lg:flex-initial">
-        <Disc3 className="h-5 w-5 shrink-0 animate-[spin_4s_linear_infinite] text-violet-400/80 sm:h-6 sm:w-6" />
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 xl:col-start-1 xl:flex-initial">
+        <Disc3 className="h-5 w-5 shrink-0 animate-[spin_4s_linear_infinite] text-fuchsia-400/80 sm:h-6 sm:w-6" />
         <div className="flex min-w-0 flex-col items-start gap-0 leading-none">
-          <h1 className="m-0 bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text font-mono text-xs font-bold uppercase tracking-[0.14em] text-transparent sm:text-sm sm:tracking-[0.18em]">
+          <h1 className="m-0 bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text font-mono text-xs font-bold uppercase tracking-[0.14em] text-transparent sm:text-sm sm:tracking-[0.18em]">
             D4NCE
           </h1>
           <span className="mt-0.5 font-sans text-[9px] font-medium tracking-[0.05em] text-white/40 min-[380px]:text-[10.5px]">
@@ -42,12 +42,12 @@ export function DjAppHeader({
         </div>
       </div>
       <VisualizerControls
-        className="hidden min-w-0 justify-center overflow-x-auto lg:col-start-2 lg:flex lg:w-auto"
+        className="hidden min-w-0 justify-center overflow-x-auto xl:col-start-2 xl:flex xl:w-auto"
         musicObject={musicObject}
         onModeChange={onModeChange}
         onColorSchemeChange={onColorSchemeChange}
       />
-      <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-1 lg:col-start-3">
+      <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-1 xl:col-start-3">
         <button
           type="button"
           onClick={onShowHelp}

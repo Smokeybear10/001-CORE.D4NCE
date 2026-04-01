@@ -93,12 +93,12 @@ export function DjSidePanel({
     <aside
       className={cn(
         "flex min-h-0 flex-col bg-[#08080f]",
-        "max-lg:fixed max-lg:inset-0 max-lg:z-50 max-lg:w-full max-lg:pt-[env(safe-area-inset-top)]",
-        "lg:relative lg:z-10 lg:h-full lg:w-72 lg:shrink-0 lg:border-r lg:border-white/[0.05] lg:pt-0 lg:shadow-none",
+        "max-xl:fixed max-xl:inset-0 max-xl:z-50 max-xl:w-full max-xl:pt-[env(safe-area-inset-top)]",
+        "xl:relative xl:z-10 xl:h-full xl:w-72 xl:shrink-0 xl:border-r xl:border-white/[0.05] xl:pt-0 xl:shadow-none",
       )}
     >
-      <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-2.5 max-lg:justify-between lg:py-2">
-        <div className="flex flex-1 items-center gap-1 max-lg:gap-2">
+      <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-2.5 max-xl:justify-between xl:py-2">
+        <div className="flex flex-1 items-center gap-1 max-xl:gap-2">
           {TABS.map(({ id, icon, label }) => (
             <button
               key={id}
@@ -106,14 +106,14 @@ export function DjSidePanel({
               aria-label={label}
               onClick={() => onSelectTab(id)}
               className={cn(
-                "flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-medium transition-all lg:rounded-lg lg:py-2",
+                "flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-medium transition-all xl:rounded-lg xl:py-2",
                 activeTab === id
                   ? "bg-white/[0.1] text-white/85"
-                  : "text-white/30 active:bg-white/[0.06] lg:hover:bg-white/[0.04] lg:hover:text-white/55",
+                  : "text-white/30 active:bg-white/[0.06] xl:hover:bg-white/[0.04] xl:hover:text-white/55",
               )}
             >
-              <span className="lg:hidden">{icon}</span>
-              <span className="hidden items-center gap-1.5 lg:inline-flex">
+              <span className="xl:hidden">{icon}</span>
+              <span className="hidden items-center gap-1.5 xl:inline-flex">
                 {icon}
                 {label}
               </span>
@@ -124,9 +124,9 @@ export function DjSidePanel({
           type="button"
           aria-label="Close panel"
           onClick={onClose}
-          className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/60 lg:h-9 lg:w-9 lg:rounded-lg"
+          className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/60 xl:h-9 xl:w-9 xl:rounded-lg"
         >
-          <X className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
+          <X className="h-4 w-4 xl:h-3.5 xl:w-3.5" />
         </button>
       </div>
 
