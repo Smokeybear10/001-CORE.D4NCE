@@ -21,10 +21,10 @@ export function TransitionStatus({ transitionState, onCancel }: TransitionStatus
   const remainingSeconds = Math.round(duration - elapsedSeconds)
 
   return (
-    <div className="p-3 rounded-lg bg-gradient-to-r from-fuchsia-500/20 to-cyan-500/20 border border-fuchsia-500/30 animate-pulse-slow">
+    <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/20 to-cyan-500/20 border border-amber-500/30 animate-pulse-slow">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-fuchsia-400 animate-pulse" />
+          <Activity className="h-4 w-4 text-amber-400 animate-pulse" />
           <span className="text-xs font-semibold text-violet-100">Transition Active</span>
         </div>
         <Button
@@ -54,7 +54,7 @@ export function TransitionStatus({ transitionState, onCancel }: TransitionStatus
           <span
             className={cn(
               "font-mono",
-              currentValues.crossfader < 0.4 ? "text-fuchsia-400" : currentValues.crossfader > 0.6 ? "text-cyan-400" : "text-violet-100"
+              currentValues.crossfader < 0.4 ? "text-amber-400" : currentValues.crossfader > 0.6 ? "text-cyan-400" : "text-violet-100"
             )}
           >
             {currentValues.crossfader < 0.4 ? "← A" : currentValues.crossfader > 0.6 ? "B →" : "MID"}
@@ -82,7 +82,7 @@ export function TransitionStatus({ transitionState, onCancel }: TransitionStatus
 
         <div className="flex items-center justify-between p-1.5 rounded bg-violet-500/[0.06]">
           <span className="text-violet-100/40">Delay</span>
-          <span className={cn("font-mono", currentValues.delay > 0.3 ? "text-fuchsia-400" : "text-violet-100/35")}>
+          <span className={cn("font-mono", currentValues.delay > 0.3 ? "text-amber-400" : "text-violet-100/35")}>
             {Math.round(currentValues.delay * 100)}%
           </span>
         </div>
@@ -96,7 +96,7 @@ export function TransitionStatus({ transitionState, onCancel }: TransitionStatus
             className={cn(
               "flex-1 rounded-full transition-all duration-100",
               i < progress * 20
-                ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500"
+                ? "bg-gradient-to-r from-amber-500 to-cyan-500"
                 : "bg-violet-500/10"
             )}
           />

@@ -109,7 +109,7 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className={`text-[11px] truncate leading-tight ${onA || onB ? "text-amber-200/60" : "text-violet-100/40"}`}>{track.title}</p>
-                        {onA && <span className="shrink-0 text-[8px] font-mono text-fuchsia-400/50">A</span>}
+                        {onA && <span className="shrink-0 text-[8px] font-mono text-amber-400/50">A</span>}
                         {onB && <span className="shrink-0 text-[8px] font-mono text-cyan-400/50">B</span>}
                       </div>
                       <p className="text-[9px] font-mono text-amber-300/15 mt-0.5 truncate">
@@ -129,7 +129,7 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button
                         onClick={() => onLoadToDeck(track, "A")}
-                        className="px-2 py-0.5 text-[10px] font-mono text-fuchsia-400/40 hover:text-fuchsia-400/80 transition-all"
+                        className="px-2 py-0.5 text-[10px] font-mono text-amber-400/40 hover:text-amber-400/80 transition-all"
                       >A</button>
                       <button
                         onClick={() => onLoadToDeck(track, "B")}

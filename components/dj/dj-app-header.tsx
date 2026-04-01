@@ -31,9 +31,9 @@ export function DjAppHeader({
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 xl:col-start-1 xl:flex-initial">
-        <Disc3 className="h-5 w-5 shrink-0 animate-[spin_4s_linear_infinite] text-fuchsia-400/80 sm:h-6 sm:w-6" />
+        <Disc3 className="h-5 w-5 shrink-0 animate-[spin_4s_linear_infinite] text-amber-400/80 sm:h-6 sm:w-6" />
         <div className="flex min-w-0 flex-col items-start gap-0 leading-none">
-          <h1 className="m-0 bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text font-mono text-xs font-bold uppercase tracking-[0.14em] text-transparent sm:text-sm sm:tracking-[0.18em]">
+          <h1 className="m-0 bg-gradient-to-r from-amber-400 to-cyan-400 bg-clip-text font-mono text-xs font-bold uppercase tracking-[0.14em] text-transparent sm:text-sm sm:tracking-[0.18em]">
             D4NCE
           </h1>
           <span className="mt-0.5 font-sans text-[9px] font-medium tracking-[0.05em] text-white/40 min-[380px]:text-[10.5px]">

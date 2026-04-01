@@ -497,9 +497,9 @@ export function VoiceControl({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Sparkles className="h-4 w-4 text-fuchsia-400" />
+              <Sparkles className="h-4 w-4 text-amber-400" />
               <div className="absolute inset-0 animate-pulse">
-                <Sparkles className="h-4 w-4 text-fuchsia-400 opacity-50" />
+                <Sparkles className="h-4 w-4 text-amber-400 opacity-50" />
               </div>
             </div>
             <h2 className="text-sm font-semibold text-violet-100">Voice Control</h2>
@@ -517,7 +517,7 @@ export function VoiceControl({
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] transition-colors",
                 isSpeaking
-                  ? "bg-fuchsia-500/30 text-fuchsia-400 animate-pulse"
+                  ? "bg-amber-500/30 text-amber-400 animate-pulse"
                   : ttsEnabled
                     ? "bg-cyan-500/20 text-cyan-400"
                     : "bg-violet-500/[0.08] text-violet-100/35",
@@ -561,7 +561,7 @@ export function VoiceControl({
         </div>
 
         <div className="text-[10px] text-violet-100/40 bg-violet-500/[0.06] rounded px-2 py-1">
-          <span className="text-fuchsia-400">Hearing:</span> {audioDescription}
+          <span className="text-amber-400">Hearing:</span> {audioDescription}
         </div>
       </div>
 
@@ -602,7 +602,7 @@ export function VoiceControl({
           )}
 
           {interimTranscript && (
-            <div className="p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-100/90 text-xs italic ml-8">
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-100/90 text-xs italic ml-8">
               {interimTranscript}...
             </div>
           )}
@@ -625,7 +625,7 @@ export function VoiceControl({
               "shrink-0 transition-all",
               isListening
                 ? "bg-red-500/20 border-red-500/50 text-red-400 animate-pulse"
-                : "border-violet-500/[0.15] text-violet-100/40 hover:text-fuchsia-400 hover:border-fuchsia-500/50",
+                : "border-violet-500/[0.15] text-violet-100/40 hover:text-amber-400 hover:border-amber-500/50",
             )}
           >
             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -643,7 +643,7 @@ export function VoiceControl({
               type="submit"
               size="icon"
               disabled={isLoading || !textInput.trim()}
-              className="shrink-0 bg-gradient-to-r from-fuchsia-600 to-cyan-600"
+              className="shrink-0 bg-gradient-to-r from-amber-500 to-cyan-600"
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -656,7 +656,7 @@ export function VoiceControl({
               key={cmd}
               onClick={() => sendMessage(cmd)}
               disabled={isLoading}
-              className="px-2 py-0.5 rounded text-[10px] bg-violet-500/[0.06] text-violet-100/40 hover:text-fuchsia-400 hover:bg-violet-500/[0.08] transition-colors disabled:opacity-50"
+              className="px-2 py-0.5 rounded text-[10px] bg-violet-500/[0.06] text-violet-100/40 hover:text-amber-400 hover:bg-violet-500/[0.08] transition-colors disabled:opacity-50"
             >
               {cmd}
             </button>

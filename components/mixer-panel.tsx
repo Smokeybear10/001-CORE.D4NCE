@@ -36,7 +36,7 @@ function Label({ children, color }: { children: React.ReactNode; color?: "a" | "
   return (
     <span className={cn(
       "text-[10px] font-mono uppercase tracking-[0.12em]",
-      color === "a" ? "text-fuchsia-400/60" : color === "b" ? "text-cyan-400/60" : "text-violet-300/45",
+      color === "a" ? "text-amber-400/60" : color === "b" ? "text-cyan-400/60" : "text-violet-300/45",
     )}>
       {children}
     </span>
@@ -48,7 +48,7 @@ function Val({ children, active, color }: { children: React.ReactNode; active?: 
     <span className={cn(
       "text-[10px] font-mono tabular-nums",
       active
-        ? color === "a" ? "text-fuchsia-400/80" : color === "b" ? "text-cyan-400/80" : "text-amber-200/70"
+        ? color === "a" ? "text-amber-400/80" : color === "b" ? "text-cyan-400/80" : "text-amber-200/70"
         : "text-violet-300/35",
     )}>
       {children}
@@ -80,7 +80,7 @@ export function MixerPanel({
       {/* BPM */}
       <div className="flex items-center justify-between px-3 pt-1.5 pb-1.5">
         <div className="flex items-center gap-1">
-          <span className="text-[11px] font-mono text-fuchsia-400/65 tabular-nums">{bpmA ?? "—"}</span>
+          <span className="text-[11px] font-mono text-amber-400/65 tabular-nums">{bpmA ?? "—"}</span>
           {camelotA && <span className="text-[9px] font-mono text-amber-300/40">{camelotA}</span>}
         </div>
         <div className="flex items-center gap-1">
@@ -92,7 +92,7 @@ export function MixerPanel({
       {/* Crossfader */}
       <div className="px-3 pb-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-mono text-fuchsia-400/45">A</span>
+          <span className="text-[9px] font-mono text-amber-400/45">A</span>
           <Slider value={[crossfader * 100]} onValueChange={([v]) => onCrossfadeChange(v / 100)} max={100} step={1} className="flex-1" />
           <span className="text-[9px] font-mono text-cyan-400/45">B</span>
         </div>
@@ -117,7 +117,7 @@ export function MixerPanel({
             className={cn(
               "flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[9px] font-mono uppercase tracking-widest transition-all disabled:opacity-10",
               trackALoaded && trackBLoaded
-                ? "text-fuchsia-400/50 hover:text-fuchsia-400/80 hover:bg-fuchsia-400/[0.06] hover:shadow-[0_0_16px_rgba(246,46,151,0.15)]"
+                ? "text-amber-400/50 hover:text-amber-400/80 hover:bg-amber-400/[0.06]"
                 : "text-violet-300/20 hover:text-violet-300/35",
             )}
           >
@@ -219,7 +219,7 @@ export function MixerPanel({
                 <div className="grid grid-cols-2 gap-2">
                   {(["A", "B"] as const).map((d) => (
                     <div key={d} className="space-y-0.5">
-                      <span className={cn("text-[9px] font-mono", d === "A" ? "text-fuchsia-400/50" : "text-cyan-400/50")}>{d}</span>
+                      <span className={cn("text-[9px] font-mono", d === "A" ? "text-amber-400/50" : "text-cyan-400/50")}>{d}</span>
                       <Slider
                         value={[((musicObject.tracks?.[d] as Record<string, number> | null)?.[`${type}Isolation`] ?? 0) * 100]}
                         onValueChange={([v]) => onIsolationChange(d, type, v / 100)}
@@ -239,7 +239,7 @@ export function MixerPanel({
               const deckColor = d === "A" ? "a" as const : "b" as const
               return (
                 <div key={d} className="space-y-1.5">
-                  <span className={cn("text-[9px] font-mono font-bold", d === "A" ? "text-fuchsia-400/50" : "text-cyan-400/50")}>Deck {d}</span>
+                  <span className={cn("text-[9px] font-mono font-bold", d === "A" ? "text-amber-400/50" : "text-cyan-400/50")}>Deck {d}</span>
                   <div className="grid grid-cols-3 gap-1">
                     {(["low", "mid", "high"] as const).map((band) => {
                       const v = musicObject.perDeckEq?.[d]?.[band] ?? 0
