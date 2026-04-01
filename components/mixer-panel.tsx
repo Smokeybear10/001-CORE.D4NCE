@@ -66,7 +66,7 @@ export function MixerPanel({
   trackALoaded, trackBLoaded,
 }: MixerPanelProps) {
   const [tab, setTab] = useState<MixerTab>("eq")
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(typeof window !== "undefined" && window.innerWidth < 640)
   const crossfader = musicObject.crossfader ?? 0.5
 
   if (collapsed) {
