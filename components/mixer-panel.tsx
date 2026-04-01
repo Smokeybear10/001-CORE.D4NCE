@@ -66,7 +66,7 @@ export function MixerPanel({
   trackALoaded, trackBLoaded,
 }: MixerPanelProps) {
   const [tab, setTab] = useState<MixerTab>("eq")
-  const [collapsed, setCollapsed] = useState(typeof window !== "undefined" && window.innerWidth < 640)
+  const [collapsed, setCollapsed] = useState(false)
   const crossfader = musicObject.crossfader ?? 0.5
 
   if (collapsed) {
@@ -74,7 +74,7 @@ export function MixerPanel({
       <button
         type="button"
         onClick={() => setCollapsed(false)}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-25 flex h-16 w-5 items-center justify-center rounded-r-lg bg-[#150535]/90 border border-l-0 border-violet-500/[0.12] shadow-[0_0_20px_rgba(185,103,255,0.06)] text-violet-300/20 hover:text-violet-300/40 transition-all"
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-25 hidden sm:flex h-16 w-5 items-center justify-center rounded-r-lg bg-[#150535]/90 border border-l-0 border-violet-500/[0.12] shadow-[0_0_20px_rgba(185,103,255,0.06)] text-violet-300/30 hover:text-violet-300/50 transition-all"
       >
         <ChevronRight className="h-3 w-3" />
       </button>
@@ -89,7 +89,7 @@ export function MixerPanel({
   ]
 
   return (
-    <aside className="absolute left-2 top-[52px] bottom-[68px] z-25 flex w-[200px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
+    <aside className="absolute left-2 top-[52px] bottom-[68px] z-25 hidden sm:flex w-[200px] flex-col bg-[#150535]/90 backdrop-blur-md rounded-2xl border border-violet-500/[0.12] shadow-[0_0_30px_rgba(185,103,255,0.08)]">
 
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 pt-3.5 pb-2">
