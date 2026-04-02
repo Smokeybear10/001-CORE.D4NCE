@@ -200,7 +200,7 @@ export function Deck({
         className={cn(
           "h-[1.5px] w-full transition-opacity duration-300",
           isA
-            ? "bg-gradient-to-r from-amber-500/0 via-amber-400 to-fuchsia-500/0"
+            ? "bg-gradient-to-r from-amber-500/0 via-amber-400 to-amber-500/0"
             : "bg-gradient-to-r from-cyan-400/0 via-cyan-400 to-cyan-400/0",
           isPlaying ? "opacity-80" : "opacity-20"
         )}

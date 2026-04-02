@@ -76,11 +76,11 @@ export function WaveformStrip({
             {deck}
           </span>
           {track && (
-            <span className="text-[10px] text-amber-200/40 truncate">{track.title}</span>
+            <span className="text-[10px] text-violet-100/40 truncate">{track.title}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {bpm && <span className="text-[9px] font-mono text-amber-300/35 tabular-nums">{Math.round(bpm)}</span>}
+          {bpm && <span className="text-[9px] font-mono text-violet-300/30 tabular-nums">{Math.round(bpm)}</span>}
           {camelotKey && <span className="text-[8px] font-mono text-violet-300/20">{camelotKey}</span>}
         </div>
       </div>

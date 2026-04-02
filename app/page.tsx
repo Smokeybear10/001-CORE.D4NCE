@@ -65,6 +65,14 @@ export default function DJSystem() {
   const [aiExpanded, setAiExpanded] = useState(false)
   const [mixerExpanded, setMixerExpanded] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [winSize, setWinSize] = useState({ w: 1280, h: 800 })
+
+  useEffect(() => {
+    const update = () => setWinSize({ w: window.innerWidth, h: window.innerHeight })
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [])
   const [bpmA, setBpmA] = useState<number | null>(null)
   const [bpmB, setBpmB] = useState<number | null>(null)
 
@@ -373,12 +381,11 @@ export default function DJSystem() {
         <DraggableCard
           id="mixer"
           title="Mix"
-          icon={<SlidersHorizontal className="h-2.5 w-2.5 text-amber-400/50" />}
+          icon={<SlidersHorizontal className="h-2.5 w-2.5 text-violet-300/50" />}
           defaultPosition={{ x: 8, y: 108 }}
-          defaultSize={{ width: 200, height: 480 }}
+          defaultSize={{ width: 200, height: Math.min(480, winSize.h - 130) }}
           expanded={mixerExpanded}
           onToggle={() => setMixerExpanded(!mixerExpanded)}
-          accentColor="amber"
         >
           <MixerPanel
             musicObject={musicObject}
@@ -407,12 +414,11 @@ export default function DJSystem() {
         <DraggableCard
           id="library"
           title="Library"
-          icon={<Library className="h-2.5 w-2.5 text-cyan-400/50" />}
-          defaultPosition={{ x: 1020, y: 108 }}
-          defaultSize={{ width: 240, height: 440 }}
+          icon={<Library className="h-2.5 w-2.5 text-violet-300/50" />}
+          defaultPosition={{ x: winSize.w - 248, y: 108 }}
+          defaultSize={{ width: 240, height: Math.min(440, winSize.h - 130) }}
           expanded={libraryExpanded}
           onToggle={() => setLibraryExpanded(!libraryExpanded)}
-          accentColor="cyan"
         >
           <LibraryDrawer
             onLoadToDeck={handleLoadToDeck}
@@ -424,12 +430,11 @@ export default function DJSystem() {
         <DraggableCard
           id="ai-copilot"
           title="AI"
-          icon={<Sparkles className="h-2.5 w-2.5 text-fuchsia-400/50" />}
-          defaultPosition={{ x: 8, y: 560 }}
+          icon={<Sparkles className="h-2.5 w-2.5 text-violet-300/50" />}
+          defaultPosition={{ x: 8, y: winSize.h - 348 }}
           defaultSize={{ width: 340, height: 320 }}
           expanded={aiExpanded}
           onToggle={() => setAiExpanded(!aiExpanded)}
-          accentColor="fuchsia"
         >
           <AIPanel
             trackA={trackA}

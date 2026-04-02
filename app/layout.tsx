@@ -35,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${orbitron.variable} ${rajdhani.variable} font-sans antialiased`}>
+      <body className={`${orbitron.variable} ${rajdhani.variable} font-sans antialiased select-none`}>
         {children}
         <Analytics />
       </body>

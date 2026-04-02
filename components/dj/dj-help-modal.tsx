@@ -21,7 +21,7 @@ export function DjHelpModal({ open, onClose }: DjHelpModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-[0.1em] text-amber-200/70">How to use D4NCE</h2>
+          <h2 className="text-sm font-semibold tracking-[0.1em] text-violet-100/70">How to use D4NCE</h2>
           <button
             type="button"
             onClick={onClose}
@@ -34,7 +34,7 @@ export function DjHelpModal({ open, onClose }: DjHelpModalProps) {
         <ol className="space-y-4">
           {DJ_HELP_STEPS.map(({ step, title, desc }) => (
             <li key={step} className="flex gap-3">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10 text-[10px] font-mono text-amber-300/60 shadow-[0_0_8px_rgba(246,46,151,0.15)]">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-violet-500/15 bg-violet-500/10 text-[10px] font-mono text-violet-300/60">
                 {step}
               </span>
               <div>
