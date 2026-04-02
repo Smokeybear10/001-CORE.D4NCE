@@ -45,7 +45,7 @@ function Slider({
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={
-            'absolute bg-gradient-to-r from-amber-500/60 to-cyan-400/50 data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full data-[orientation=vertical]:bg-gradient-to-t'
+            'absolute bg-violet-400/40 data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full'
           }
         />
       </SliderPrimitive.Track>
@@ -53,7 +53,7 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="block size-3 shrink-0 rounded-full bg-amber-300/80 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+          className="block size-3 shrink-0 rounded-full bg-violet-300/80 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
         />
       ))}
     </SliderPrimitive.Root>

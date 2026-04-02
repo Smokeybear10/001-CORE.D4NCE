@@ -510,7 +510,7 @@ export function GrokChatPanel({
                     key={label}
                     onClick={() => sendMessage(prompt)}
                     disabled={isLoading}
-                    className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/40 hover:text-amber-300/70 bg-violet-500/[0.04] hover:bg-amber-500/[0.08] border border-violet-500/[0.08] hover:border-amber-500/20 disabled:opacity-30 transition-all text-left"
+                    className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/40 hover:text-violet-200/70 bg-violet-500/[0.04] hover:bg-violet-500/[0.08] border border-violet-500/[0.08] hover:border-violet-400/20 disabled:opacity-30 transition-all text-left"
                   >
                     {label}
                   </button>
@@ -537,9 +537,9 @@ export function GrokChatPanel({
 
           {isLoading && (
             <div className="flex gap-1.5 items-center px-0.5 h-5">
-              <span className="w-1 h-1 rounded-full bg-amber-400/50 animate-bounce [animation-delay:0ms]" />
-              <span className="w-1 h-1 rounded-full bg-amber-400/50 animate-bounce [animation-delay:150ms]" />
-              <span className="w-1 h-1 rounded-full bg-amber-400/50 animate-bounce [animation-delay:300ms]" />
+              <span className="w-1 h-1 rounded-full bg-violet-400/50 animate-bounce [animation-delay:0ms]" />
+              <span className="w-1 h-1 rounded-full bg-violet-400/50 animate-bounce [animation-delay:150ms]" />
+              <span className="w-1 h-1 rounded-full bg-violet-400/50 animate-bounce [animation-delay:300ms]" />
             </div>
           )}
 
@@ -584,13 +584,13 @@ export function GrokChatPanel({
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             placeholder="Ask anything..."
-            className="flex-1 h-8 px-2.5 text-[11px] font-mono bg-transparent border border-violet-500/[0.1] rounded-lg text-white/60 placeholder:text-violet-300/20 focus:outline-none focus:border-amber-500/25 transition-colors"
+            className="flex-1 h-8 px-2.5 text-[11px] font-mono bg-transparent border border-violet-500/[0.1] rounded-lg text-white/60 placeholder:text-violet-300/20 focus:outline-none focus:border-violet-400/25 transition-colors"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !textInput.trim()}
-            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-amber-400/50 hover:text-amber-400/80 hover:bg-amber-500/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-violet-300/50 hover:text-violet-200/80 hover:bg-violet-500/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all"
           >
             <Send className="h-3 w-3" />
           </button>
@@ -608,7 +608,7 @@ export function GrokChatPanel({
               className={cn(
                 "px-1.5 py-0.5 rounded text-[8px] font-mono transition-colors",
                 selectedModel === id
-                  ? "text-amber-400/50"
+                  ? "text-violet-200/50"
                   : "text-violet-300/15 hover:text-violet-300/30",
               )}
             >

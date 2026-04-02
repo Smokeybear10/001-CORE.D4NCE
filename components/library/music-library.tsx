@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import type { Track } from "@/lib/types"
 import { useTracks } from "@/hooks/use-tracks"
 import { Upload, Search, Loader2, Sparkles, Trash2, Music } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface MusicLibraryProps {
   onLoadToDeck: (track: Track, deck: "A" | "B") => void
@@ -72,7 +73,7 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
-            className="w-full h-7 pl-7 pr-3 text-[11px] bg-transparent border-b border-violet-500/[0.08] text-amber-200/50 placeholder:text-violet-300/10 focus:outline-none focus:border-white/15 transition-colors"
+            className="w-full h-7 pl-7 pr-3 text-[11px] bg-transparent border-b border-violet-500/[0.08] text-violet-100/50 placeholder:text-violet-300/10 focus:outline-none focus:border-white/15 transition-colors"
           />
         </div>
         <input ref={fileInputRef} type="file" accept=".mp3,.wav,.ogg,.m4a,.aac,.flac,audio/*" multiple className="hidden" onChange={handleUpload} />
@@ -104,15 +105,23 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
               const onA = trackA?.id === track.id
               const onB = trackB?.id === track.id
               return (
-                <div key={track.id} className="group relative px-2.5 py-2 rounded transition-colors cursor-default hover:bg-violet-500/[0.05]">
+                <div key={track.id} className={cn(
+                  "group relative px-2.5 py-2 rounded transition-colors cursor-default",
+                  onA ? "bg-amber-500/[0.06] border-l-2 border-l-amber-400/40" :
+                  onB ? "bg-cyan-500/[0.06] border-l-2 border-l-cyan-400/40" :
+                  "hover:bg-violet-500/[0.05] border-l-2 border-l-transparent",
+                )}>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className={`text-[11px] truncate leading-tight ${onA || onB ? "text-amber-200/60" : "text-violet-100/40"}`}>{track.title}</p>
-                        {onA && <span className="shrink-0 text-[8px] font-mono text-amber-400/50">A</span>}
-                        {onB && <span className="shrink-0 text-[8px] font-mono text-cyan-400/50">B</span>}
+                        <p className={cn(
+                          "text-[11px] truncate leading-tight",
+                          onA ? "text-amber-200/70" : onB ? "text-cyan-200/70" : "text-violet-100/40",
+                        )}>{track.title}</p>
+                        {onA && <span className="shrink-0 text-[8px] font-mono text-amber-400/60">A</span>}
+                        {onB && <span className="shrink-0 text-[8px] font-mono text-cyan-400/60">B</span>}
                       </div>
-                      <p className="text-[9px] font-mono text-amber-300/15 mt-0.5 truncate">
+                      <p className="text-[9px] font-mono text-violet-300/20 mt-0.5 truncate">
                         {track.bpm ? `${Math.round(track.bpm)}` : ""}
                         {track.bpm && track.key ? " · " : ""}
                         {track.key ?? ""}

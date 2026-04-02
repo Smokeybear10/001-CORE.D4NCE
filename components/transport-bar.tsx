@@ -82,8 +82,8 @@ function InlineWaveform({
       "group relative flex-1 min-w-0 h-[48px] rounded-lg overflow-hidden transition-all cursor-pointer",
       "bg-[#150535]/70 border border-violet-500/[0.1]",
       isPlaying && (isA
-        ? "border-amber-500/20 shadow-[0_0_16px_rgba(251,191,36,0.12)]"
-        : "border-cyan-500/20 shadow-[0_0_16px_rgba(1,205,254,0.15)]"
+        ? "border-amber-500/15 shadow-[0_0_12px_rgba(251,191,36,0.06)]"
+        : "border-cyan-500/15 shadow-[0_0_12px_rgba(1,205,254,0.08)]"
       ),
     )}>
       {/* Top info row */}
@@ -94,11 +94,11 @@ function InlineWaveform({
             isA ? "text-amber-400/65" : "text-cyan-400/65",
           )}>{deck}</span>
           {track && (
-            <span className="text-[10px] text-amber-200/50 truncate">{track.title}</span>
+            <span className="text-[10px] text-violet-100/45 truncate">{track.title}</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {bpm && <span className="text-[9px] font-mono text-amber-300/45 tabular-nums">{Math.round(bpm)}</span>}
+          {bpm && <span className="text-[9px] font-mono text-violet-300/35 tabular-nums">{Math.round(bpm)}</span>}
           {camelotKey && <span className="text-[8px] font-mono text-violet-300/35">{camelotKey}</span>}
         </div>
       </div>
@@ -166,20 +166,22 @@ function InlineWaveform({
         <span className="text-[8px] font-mono text-violet-300/35 tabular-nums">-{formatTime(remaining)}</span>
       </div>
 
-      {/* Play/pause on hover */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay() }}
-        disabled={!track}
-        className={cn(
-          "absolute left-2 bottom-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full transition-all",
-          "opacity-0 group-hover:opacity-100 pointer-events-auto",
-          isA ? "text-amber-400/60 hover:text-amber-400" : "text-cyan-400/60 hover:text-cyan-400",
-          !track && "hidden",
-        )}
-      >
-        {isPlaying ? <Pause className="h-2 w-2" /> : <Play className="h-2 w-2 ml-px" />}
-      </button>
+      {/* Play/pause — centered, visible on hover or when paused */}
+      {track && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay() }}
+          className={cn(
+            "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm transition-all",
+            isA ? "text-amber-400/80 hover:text-amber-400" : "text-cyan-400/80 hover:text-cyan-400",
+            isPlaying
+              ? "opacity-0 group-hover:opacity-100"
+              : "opacity-100",
+          )}
+        >
+          {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 ml-0.5" />}
+        </button>
+      )}
     </div>
   )
 }

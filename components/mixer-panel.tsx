@@ -36,20 +36,18 @@ function Label({ children, color }: { children: React.ReactNode; color?: "a" | "
   return (
     <span className={cn(
       "text-[10px] font-mono uppercase tracking-[0.12em]",
-      color === "a" ? "text-amber-400/60" : color === "b" ? "text-cyan-400/60" : "text-violet-300/45",
+      color === "a" ? "text-amber-400/50" : color === "b" ? "text-cyan-400/50" : "text-violet-300/40",
     )}>
       {children}
     </span>
   )
 }
 
-function Val({ children, active, color }: { children: React.ReactNode; active?: boolean; color?: "a" | "b" }) {
+function Val({ children, active }: { children: React.ReactNode; active?: boolean }) {
   return (
     <span className={cn(
       "text-[10px] font-mono tabular-nums",
-      active
-        ? color === "a" ? "text-amber-400/80" : color === "b" ? "text-cyan-400/80" : "text-amber-200/70"
-        : "text-violet-300/35",
+      active ? "text-violet-200/60" : "text-violet-300/30",
     )}>
       {children}
     </span>
@@ -80,21 +78,21 @@ export function MixerPanel({
       {/* BPM */}
       <div className="flex items-center justify-between px-3 pt-1.5 pb-1.5">
         <div className="flex items-center gap-1">
-          <span className="text-[11px] font-mono text-amber-400/65 tabular-nums">{bpmA ?? "—"}</span>
-          {camelotA && <span className="text-[9px] font-mono text-amber-300/40">{camelotA}</span>}
+          <span className="text-[11px] font-mono text-amber-400/50 tabular-nums">{bpmA ?? "—"}</span>
+          {camelotA && <span className="text-[9px] font-mono text-amber-400/30">{camelotA}</span>}
         </div>
         <div className="flex items-center gap-1">
-          {camelotB && <span className="text-[9px] font-mono text-amber-300/40">{camelotB}</span>}
-          <span className="text-[11px] font-mono text-cyan-400/65 tabular-nums">{bpmB ?? "—"}</span>
+          {camelotB && <span className="text-[9px] font-mono text-cyan-400/30">{camelotB}</span>}
+          <span className="text-[11px] font-mono text-cyan-400/50 tabular-nums">{bpmB ?? "—"}</span>
         </div>
       </div>
 
       {/* Crossfader */}
       <div className="px-3 pb-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-mono text-amber-400/45">A</span>
+          <span className="text-[9px] font-mono text-amber-400/35">A</span>
           <Slider value={[crossfader * 100]} onValueChange={([v]) => onCrossfadeChange(v / 100)} max={100} step={1} className="flex-1" />
-          <span className="text-[9px] font-mono text-cyan-400/45">B</span>
+          <span className="text-[9px] font-mono text-cyan-400/35">B</span>
         </div>
       </div>
 
@@ -117,8 +115,8 @@ export function MixerPanel({
             className={cn(
               "flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[9px] font-mono uppercase tracking-widest transition-all disabled:opacity-10",
               trackALoaded && trackBLoaded
-                ? "text-amber-400/50 hover:text-amber-400/80 hover:bg-amber-400/[0.06]"
-                : "text-violet-300/20 hover:text-violet-300/35",
+                ? "text-fuchsia-400/70 hover:text-fuchsia-300 hover:bg-fuchsia-500/[0.08] border border-fuchsia-500/20 hover:border-fuchsia-500/35"
+                : "text-violet-300/15 hover:text-violet-300/30 border border-transparent",
             )}
           >
             <Shuffle className="h-3 w-3" />
@@ -159,7 +157,7 @@ export function MixerPanel({
                     <div className="h-16 flex items-center">
                       <Slider orientation="vertical" value={[v + 12]} onValueChange={([n]) => onEQChange(band, n - 12)} max={24} step={0.5} className="h-full !min-h-0" />
                     </div>
-                    <Val active={v !== 0} color={v > 0 ? "a" : v < 0 ? "b" : undefined}>{v > 0 ? "+" : ""}{v.toFixed(0)}</Val>
+                    <Val active={v !== 0}>{v > 0 ? "+" : ""}{v.toFixed(0)}</Val>
                   </div>
                 )
               })}
@@ -167,7 +165,7 @@ export function MixerPanel({
             <div className="space-y-1">
               <div className="flex justify-between items-center">
                 <Label>Filter</Label>
-                <Val active={(musicObject.filter?.cutoff ?? 20000) < 19000} color="a">{(musicObject.filter?.cutoff ?? 20000) >= 1000 ? `${((musicObject.filter?.cutoff ?? 20000) / 1000).toFixed(1)}k` : (musicObject.filter?.cutoff ?? 20000).toFixed(0)} Hz</Val>
+                <Val active={(musicObject.filter?.cutoff ?? 20000) < 19000}>{(musicObject.filter?.cutoff ?? 20000) >= 1000 ? `${((musicObject.filter?.cutoff ?? 20000) / 1000).toFixed(1)}k` : (musicObject.filter?.cutoff ?? 20000).toFixed(0)} Hz</Val>
               </div>
               <Slider value={[(Math.log10(musicObject.filter?.cutoff ?? 20000) / Math.log10(20000)) * 100]} onValueChange={([v]) => onFilterChange(Math.pow(10, (v / 100) * Math.log10(20000)))} max={100} step={1} />
             </div>
@@ -177,13 +175,13 @@ export function MixerPanel({
         {tab === "fx" && (
           <>
             {([
-              { label: "Reverb", value: musicObject.reverbAmount ?? 0, onChange: onReverbChange, col: "b" as const },
-              { label: "Delay", value: musicObject.delayAmount ?? 0, onChange: onDelayChange, col: "a" as const },
-            ]).map(({ label, value, onChange, col }) => (
+              { label: "Reverb", value: musicObject.reverbAmount ?? 0, onChange: onReverbChange },
+              { label: "Delay", value: musicObject.delayAmount ?? 0, onChange: onDelayChange },
+            ]).map(({ label, value, onChange }) => (
               <div key={label} className="space-y-1">
                 <div className="flex justify-between items-center">
                   <Label>{label}</Label>
-                  <Val active={value > 0} color={value > 0 ? col : undefined}>{Math.round(value * 100)}%</Val>
+                  <Val active={value > 0}>{Math.round(value * 100)}%</Val>
                 </div>
                 <Slider value={[value * 100]} onValueChange={([v]) => onChange(v / 100)} max={100} step={1} />
               </div>
@@ -193,7 +191,7 @@ export function MixerPanel({
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
                     <Label>Flanger</Label>
-                    <Val active={(musicObject.fx?.flangerMix ?? 0) > 0} color={(musicObject.fx?.flangerMix ?? 0) > 0 ? "a" : undefined}>{Math.round((musicObject.fx?.flangerMix ?? 0) * 100)}%</Val>
+                    <Val active={(musicObject.fx?.flangerMix ?? 0) > 0}>{Math.round((musicObject.fx?.flangerMix ?? 0) * 100)}%</Val>
                   </div>
                   <Slider value={[(musicObject.fx?.flangerMix ?? 0) * 100]} onValueChange={([v]) => onFXChange("flangerMix", v / 100)} max={100} step={1} />
                 </div>
@@ -249,7 +247,7 @@ export function MixerPanel({
                           <div className="h-14 flex items-center">
                             <Slider orientation="vertical" value={[v + 12]} onValueChange={([n]) => onPerDeckEQChange(d, band, n - 12)} max={24} step={0.5} className="h-full !min-h-0" />
                           </div>
-                          <Val active={v !== 0} color={v !== 0 ? deckColor : undefined}>{v > 0 ? "+" : ""}{v.toFixed(0)}</Val>
+                          <Val active={v !== 0}>{v > 0 ? "+" : ""}{v.toFixed(0)}</Val>
                         </div>
                       )
                     })}
