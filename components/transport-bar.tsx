@@ -200,7 +200,7 @@ export function TransportBar({
 }: TransportBarProps) {
 
   return (
-    <div className="absolute top-[44px] inset-x-0 z-25">
+    <div className="absolute top-[44px] inset-x-0 z-25" data-tour-id="transport">
       <div className="bg-[#110328]/90 backdrop-blur-md border-b border-violet-500/[0.08] shadow-[0_4px_30px_rgba(21,5,53,0.6)]">
         {/* Waveform strips */}
         <div className="flex gap-1.5 px-3 py-2 sm:px-4">

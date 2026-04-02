@@ -555,6 +555,17 @@ export function GrokChatPanel({
         </div>
       </ScrollArea>
 
+      {/* Persistent transition button */}
+      <div className="px-2.5 pt-1">
+        <button
+          onClick={() => sendMessage("Create a smooth transition between the two decks")}
+          disabled={isLoading}
+          className="w-full px-2 py-1.5 rounded-lg text-[10px] font-mono text-violet-300/50 hover:text-violet-200/80 bg-violet-500/[0.06] hover:bg-violet-500/[0.12] border border-violet-500/[0.1] hover:border-violet-400/25 disabled:opacity-30 transition-all"
+        >
+          Transition
+        </button>
+      </div>
+
       {/* Input */}
       <div className="px-2.5 pb-2.5 pt-1.5">
         {voiceError && (

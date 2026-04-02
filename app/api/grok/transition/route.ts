@@ -238,8 +238,9 @@ ${(() => {
   if (outgoingStructure) {
     lines.push(structureToPromptText(outgoingStructure, "OUTGOING", outgoingTime, outgoingDuration))
     if (outgoingTime !== undefined) {
-      const exit = findNextExitPoint(outgoingStructure, outgoingTime)
-      lines.push(`\n  >>> RECOMMENDED: Wait ${exit.delay.toFixed(0)}s (startDelay=${exit.delay.toFixed(0)}) — ${exit.reason}`)
+      const exit = findNextExitPoint(outgoingStructure, outgoingTime, outgoingDuration)
+      lines.push(`\n  >>> OUTGOING EXIT: Wait ${exit.delay.toFixed(0)}s (startDelay=${exit.delay.toFixed(0)}) — ${exit.reason}`)
+      lines.push(`  IMPORTANT: This delay accounts for the current section. Trust it.`)
     }
   } else if (outgoingTime !== undefined && outgoingDuration) {
     const pct = outgoingTime / outgoingDuration
@@ -259,8 +260,11 @@ ${(() => {
     lines.push("")
     lines.push(structureToPromptText(incomingStructure, "INCOMING", incomingTime, incomingDuration))
     const entry = findBestEntryPoint(incomingStructure)
-    lines.push(`\n  >>> RECOMMENDED ENTRY POINT: ${entry.time.toFixed(1)}s — ${entry.reason}`)
-    lines.push(`  Set incomingStartSeconds=${entry.time.toFixed(1)} to cue the incoming track here.`)
+    lines.push(`\n  >>> INCOMING ENTRY: ${entry.time.toFixed(1)}s — ${entry.reason}`)
+    if (entry.targetMoment) {
+      lines.push(`  TARGET MOMENT: The incoming track's ${entry.targetMoment}`)
+    }
+    lines.push(`  Set incomingStartSeconds=${entry.time.toFixed(1)} — the system handles playback timing.`)
   }
 
   if (remaining !== null) {
@@ -366,21 +370,17 @@ TIMING — USE THE SONG STRUCTURE:
 The song structure analysis above gives you EXACT sections and phrase boundaries.
 Use this data to make intelligent timing decisions:
 
-startDelay (0-30s): How long to WAIT before beginning the transition.
-  - If we're in a drop → wait a few seconds for it to resolve, but don't wait forever
-  - If we're in a buildup → wait for the drop to hit, then start
-  - If we're in a breakdown or outro → start immediately (delay=0)
-  - PREFER SMALL DELAYS (0-10s). Only use 10-30s if we're truly stuck in a buildup.
-  - The analysis above includes a RECOMMENDED startDelay — use it but round DOWN, not up.
+startDelay (0-15s): Suggestion for when to start the blend.
+  - The system overrides this with song structure analysis when available.
+  - Set to 0 unless you have a specific reason (e.g., no structure data).
+  - Max 15 seconds — the system caps it regardless.
 
 incomingStartSeconds: Where to CUE the incoming track.
-  - Skip long intros — jump to the first verse/buildup
-  - The analysis above includes a RECOMMENDED entry point — use it.
-  - If the incoming song has no structure data, start from 0.
-  - IMPORTANT: The incoming track starts playing IMMEDIATELY (silently behind the crossfader).
-    It plays for startDelay seconds before the blend begins. Account for this:
-    If you want the blend to catch the incoming track at a chorus that's at 30s,
-    and startDelay=10s, set incomingStartSeconds=20 (30-10=20).
+  - The INCOMING ENTRY analysis tells you exactly where. USE THAT VALUE.
+  - The system starts the incoming track at this exact position when the blend begins.
+  - No timing math needed — just set it to the recommended entry point.
+  - If no structure data exists, start from 0.
+  - NEVER cue into the middle of a drop — cue BEFORE the energy so it builds.
 
 Phrases are ${(60 / bpmOut * 4 * 8).toFixed(0)}s (8 bars) or ${(60 / bpmOut * 4 * 16).toFixed(0)}s (16 bars) at ${bpmOut} BPM.
 Align your transition duration to phrase multiples for professional results.
