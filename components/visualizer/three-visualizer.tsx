@@ -2,10 +2,12 @@
 
 import { useRef, useLayoutEffect } from "react"
 import type { MusicObject } from "@/lib/types"
+import type { TransitionState } from "@/lib/music-engine"
 
 interface VisualizerProps {
   analyserData: { frequency: Uint8Array; timeDomain: Uint8Array }
   musicObject: MusicObject
+  transitionState?: TransitionState
 }
 
 const palette = {
@@ -25,14 +27,35 @@ const palette = {
   ],
 }
 
-function pickColor(deck: "A" | "B", t: number, offset: number): number[] {
+function shiftColorTemp(color: number[], centroid: number): number[] {
+  const warmth = 1 - centroid
+  if (warmth > 0.55) {
+    const f = (warmth - 0.55) / 0.45
+    return [
+      Math.min(255, Math.round(color[0] + f * 50)),
+      Math.round(color[1] * (1 - f * 0.15)),
+      Math.max(0, Math.round(color[2] - f * 40)),
+    ]
+  }
+  if (warmth < 0.35) {
+    const f = (0.35 - warmth) / 0.35
+    return [
+      Math.max(0, Math.round(color[0] - f * 35)),
+      Math.min(255, Math.round(color[1] + f * 20)),
+      Math.min(255, Math.round(color[2] + f * 50)),
+    ]
+  }
+  return color
+}
+
+function pickColor(deck: "A" | "B", t: number, offset: number, centroid = 0.5): number[] {
   const arr = deck === "A" ? palette.deckA : palette.deckB
   const idx = (t * 0.04 + offset) % arr.length
   const i = Math.floor(idx)
   const frac = idx - i
   const a = arr[i % arr.length]
   const b = arr[(i + 1) % arr.length]
-  return lerpColor(a, b, frac)
+  return shiftColorTemp(lerpColor(a, b, frac), centroid)
 }
 
 function lerpColor(a: number[], b: number[], t: number): number[] {
@@ -44,44 +67,76 @@ function lerpColor(a: number[], b: number[], t: number): number[] {
 }
 
 function rgbStr(c: number[]) { return `${c[0]},${c[1]},${c[2]}` }
+function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
-}
+// --- Data types ---
 
 interface Particle {
   x: number; y: number; vx: number; vy: number
   size: number; life: number; maxLife: number; col: number[]
+  glow: boolean
 }
 
-function spawnParticle(W: number, H: number, col: number[]): Particle {
+interface ShockWave {
+  radius: number; maxRadius: number
+  alpha: number; col: number[]
+}
+
+interface LaserBeam {
+  angle: number; length: number
+  life: number; maxLife: number; col: number[]
+}
+
+function spawnParticle(W: number, H: number, col: number[], energy: number, burst: boolean): Particle {
   const cx = W / 2
   const cy = H * 0.42
   const innerR = Math.min(W, H) * 0.18
   const angle = Math.random() * Math.PI * 2
-  const speed = 0.2 + Math.random() * 0.6
+  const baseSpeed = burst ? 1.0 + Math.random() * 2.0 : 0.2 + Math.random() * 0.6
+  const speed = baseSpeed * (0.5 + energy * 1.5)
+
   return {
     x: cx + Math.cos(angle) * (innerR + Math.random() * 8),
     y: cy + Math.sin(angle) * (innerR + Math.random() * 8),
-    vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 0.2,
-    vy: Math.sin(angle) * speed + (Math.random() - 0.5) * 0.2,
-    size: 0.8 + Math.random() * 2,
+    vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 0.3,
+    vy: Math.sin(angle) * speed + (Math.random() - 0.5) * 0.3,
+    size: burst ? 0.5 + Math.random() * 1.5 : 1.0 + Math.random() * 3.0,
     life: 1,
-    maxLife: 60 + Math.random() * 120,
+    maxLife: burst ? 20 + Math.random() * 50 : 60 + Math.random() * 140,
     col,
+    glow: !burst && Math.random() < 0.3,
   }
 }
 
-// --- VAPORWAVE BACKGROUND (scrolling grid) ---
+// Spawn particles from screen edges during transitions
+function spawnEdgeParticle(W: number, H: number, col: number[], fromLeft: boolean): Particle {
+  const x = fromLeft ? -5 : W + 5
+  const y = Math.random() * H * 0.8
+  const speed = 1.5 + Math.random() * 2.5
+  const dir = fromLeft ? 1 : -1
+  return {
+    x, y,
+    vx: dir * speed + (Math.random() - 0.5) * 0.5,
+    vy: (Math.random() - 0.5) * 1.5,
+    size: 1.0 + Math.random() * 2.5,
+    life: 1,
+    maxLife: 40 + Math.random() * 80,
+    col,
+    glow: Math.random() < 0.4,
+  }
+}
+
+// --- BACKGROUND ---
 
 function drawBackground(
   ctx: CanvasRenderingContext2D,
   W: number, H: number,
   t: number,
   energy: number,
-  beat: number,
+  bass: number,
+  kick: number,
+  hat: number,
 ) {
-  // 1. Gradient sky
   const grad = ctx.createLinearGradient(0, 0, 0, H)
   grad.addColorStop(0, "#0d0221")
   grad.addColorStop(0.28, "#150535")
@@ -92,21 +147,19 @@ function drawBackground(
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, W, H)
 
-  // 2. Retro sun
   const horizonY = H * 0.55
   const baseSunR = Math.min(W, H) * 0.13
-  const sunR = baseSunR * (1 + energy * 0.15 + beat * 0.1)
+  const sunR = baseSunR * (1 + bass * 0.35 + kick * 0.2)
   const sunCX = W / 2
 
-  // Sun glow
-  const sunGlow = ctx.createRadialGradient(sunCX, horizonY, sunR * 0.3, sunCX, horizonY, sunR * 3)
-  sunGlow.addColorStop(0, `rgba(249,171,83,${0.15 + energy * 0.2 + beat * 0.12})`)
-  sunGlow.addColorStop(0.4, `rgba(246,46,151,${0.06 + energy * 0.08 + beat * 0.05})`)
+  const sunGlow = ctx.createRadialGradient(sunCX, horizonY, sunR * 0.3, sunCX, horizonY, sunR * 3.5)
+  const glowI = 0.15 + bass * 0.3 + kick * 0.15
+  sunGlow.addColorStop(0, `rgba(249,171,83,${glowI})`)
+  sunGlow.addColorStop(0.4, `rgba(246,46,151,${glowI * 0.4})`)
   sunGlow.addColorStop(1, "rgba(246,46,151,0)")
   ctx.fillStyle = sunGlow
   ctx.fillRect(0, 0, W, H)
 
-  // Sun body
   ctx.save()
   ctx.beginPath()
   ctx.rect(0, 0, W, horizonY)
@@ -122,42 +175,45 @@ function drawBackground(
   ctx.beginPath()
   ctx.arc(sunCX, horizonY, sunR, 0, Math.PI * 2)
   ctx.fill()
-
   ctx.restore()
 
-  // 3. Scrolling perspective grid floor
+  // Scrolling grid
   const gridTop = horizonY
   const gridH = H - gridTop
-
-  // Scrolling speed scales with energy
-  const scrollSpeed = 0.4 + energy * 1.6 + beat * 0.6
+  const scrollSpeed = 0.4 + bass * 2.5 + kick * 1.0
   const scrollOffset = (t * scrollSpeed) % 1
+  const warpAmp = bass * 12 + kick * 6
+  const warpFreq = 3 + energy * 4
 
-  // Horizontal grid lines — scroll toward viewer
   const numH = 24
   for (let i = 0; i < numH; i++) {
     const rawP = (i + scrollOffset) / numH
     const p = Math.pow(rawP, 2.2)
     const y = gridTop + gridH * p
     if (y <= gridTop) continue
-    const alpha = (0.02 + p * 0.08) * (1 + energy * 1.2 + beat * 0.8)
-    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.2)})`
-    ctx.lineWidth = 0.5 + p * 0.8 + beat * 0.4
+    const alpha = (0.02 + p * 0.08) * (1 + energy * 1.5 + kick * 1.0)
+    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.25)})`
+    ctx.lineWidth = 0.5 + p * 0.8 + kick * 0.6
+
     ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(W, y)
+    const segments = 40
+    for (let s = 0; s <= segments; s++) {
+      const sx = (s / segments) * W
+      const warp = Math.sin(sx * warpFreq * 0.01 + t * 2) * warpAmp * p
+      if (s === 0) ctx.moveTo(sx, y + warp)
+      else ctx.lineTo(sx, y + warp)
+    }
     ctx.stroke()
   }
 
-  // Vertical grid lines (perspective convergence)
   const numV = 36
   const vanishX = W / 2
   for (let i = -numV / 2; i <= numV / 2; i++) {
     if (i === 0) continue
     const spread = W * 1.8
     const bottomX = vanishX + (i / (numV / 2)) * (spread / 2)
-    const alpha = (0.01 + Math.max(0, 0.04 - Math.abs(i) * 0.001)) * (1 + energy * 0.8 + beat * 0.3)
-    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.1)})`
+    const alpha = (0.01 + Math.max(0, 0.04 - Math.abs(i) * 0.001)) * (1 + energy * 0.8 + kick * 0.4)
+    ctx.strokeStyle = `rgba(1,205,254,${Math.min(alpha, 0.12)})`
     ctx.lineWidth = 0.5
     ctx.beginPath()
     ctx.moveTo(vanishX, gridTop)
@@ -165,21 +221,22 @@ function drawBackground(
     ctx.stroke()
   }
 
-  // Horizon glow line
+  // Horizon glow
   const horizGlow = ctx.createLinearGradient(0, horizonY - 3, 0, horizonY + 3)
   horizGlow.addColorStop(0, "rgba(246,46,151,0)")
-  horizGlow.addColorStop(0.5, `rgba(246,46,151,${0.25 + energy * 0.4 + beat * 0.3})`)
+  horizGlow.addColorStop(0.5, `rgba(246,46,151,${0.25 + bass * 0.5 + kick * 0.35})`)
   horizGlow.addColorStop(1, "rgba(246,46,151,0)")
   ctx.fillStyle = horizGlow
-  const glowH = 6 + beat * 8 + energy * 4
+  const glowH = 6 + kick * 16 + bass * 10
   ctx.fillRect(0, horizonY - glowH / 2, W, glowH)
 
-  // Stars — flicker more with energy
+  // Stars
   const starSeed = 42
   for (let i = 0; i < 60; i++) {
     const sx = ((i * 7919 + starSeed) % 1000) / 1000 * W
     const sy = ((i * 6271 + starSeed) % 1000) / 1000 * horizonY * 0.85
-    const flicker = 0.3 + Math.sin(t * (0.8 + energy * 2) + i * 1.7) * (0.15 + energy * 0.1)
+    const flickerSpeed = 0.8 + hat * 4 + energy * 2
+    const flicker = 0.3 + Math.sin(t * flickerSpeed + i * 1.7) * (0.15 + hat * 0.2 + energy * 0.1)
     const size = ((i * 3571 + starSeed) % 100) / 100 * 1.2 + 0.3
     ctx.fillStyle = `rgba(185,103,255,${flicker})`
     ctx.beginPath()
@@ -188,7 +245,79 @@ function drawBackground(
   }
 }
 
-// --- CIRCULAR (only when audio playing) ---
+// --- LASER BEAMS (snare-triggered) ---
+
+function drawLaserBeams(
+  ctx: CanvasRenderingContext2D,
+  beams: LaserBeam[],
+  W: number, H: number,
+) {
+  const sunCX = W / 2
+  const horizonY = H * 0.55
+
+  for (let i = beams.length - 1; i >= 0; i--) {
+    const b = beams[i]
+    b.life--
+    if (b.life <= 0) { beams.splice(i, 1); continue }
+
+    const lifeRatio = b.life / b.maxLife
+    const alpha = lifeRatio * 0.35
+    const endX = sunCX + Math.cos(b.angle) * b.length
+    const endY = horizonY + Math.sin(b.angle) * b.length
+
+    ctx.strokeStyle = `rgba(${rgbStr(b.col)},${alpha * 0.25})`
+    ctx.lineWidth = 5 + lifeRatio * 8
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(sunCX, horizonY)
+    ctx.lineTo(endX, endY)
+    ctx.stroke()
+
+    ctx.strokeStyle = `rgba(${rgbStr(b.col)},${alpha})`
+    ctx.lineWidth = 1 + lifeRatio * 2.5
+    ctx.beginPath()
+    ctx.moveTo(sunCX, horizonY)
+    ctx.lineTo(endX, endY)
+    ctx.stroke()
+  }
+}
+
+// --- SHOCKWAVES (kick-triggered, integrated into background) ---
+
+function drawShockwaves(
+  ctx: CanvasRenderingContext2D,
+  waves: ShockWave[],
+  W: number, H: number,
+) {
+  const cx = W / 2
+  const horizonY = H * 0.55
+
+  for (let i = waves.length - 1; i >= 0; i--) {
+    const w = waves[i]
+    w.radius += (w.maxRadius - w.radius) * 0.03 + 2.5
+    w.alpha *= 0.97
+    if (w.alpha < 0.008 || w.radius > w.maxRadius * 0.98) {
+      waves.splice(i, 1)
+      continue
+    }
+
+    // Draw as a soft radial gradient ring centered on horizon (feels like it's part of the scene)
+    const innerR = Math.max(0, w.radius - 8)
+    const outerR = w.radius + 8
+    const grad = ctx.createRadialGradient(cx, horizonY, innerR, cx, horizonY, outerR)
+    grad.addColorStop(0, `rgba(${rgbStr(w.col)},0)`)
+    grad.addColorStop(0.3, `rgba(${rgbStr(w.col)},${w.alpha * 0.6})`)
+    grad.addColorStop(0.5, `rgba(${rgbStr(w.col)},${w.alpha})`)
+    grad.addColorStop(0.7, `rgba(${rgbStr(w.col)},${w.alpha * 0.6})`)
+    grad.addColorStop(1, `rgba(${rgbStr(w.col)},0)`)
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(cx, horizonY, outerR, 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
+
+// --- CIRCULAR (beat-only, subtle) ---
 
 function drawCircular(
   ctx: CanvasRenderingContext2D,
@@ -198,34 +327,33 @@ function drawCircular(
   smoothed: Float32Array,
   t: number,
   crossfader: number,
-  energy: number,
-  beat: number,
+  circleVis: number,
+  kick: number,
+  centroid: number,
 ) {
-  // Fade in based on energy — invisible when silent
-  const visAlpha = Math.min(1, energy * 4)
-  if (visAlpha < 0.01) return
+  if (circleVis < 0.01) return
 
   ctx.save()
-  ctx.globalAlpha = visAlpha
+  ctx.globalAlpha = circleVis
 
   const cx = W / 2
   const cy = H * 0.42
-  const count = 128
-  const innerR = Math.min(W, H) * 0.18 + beat * 3
-  const maxBarH = Math.min(W, H) * 0.26
+  const count = 64
+  const innerR = Math.min(W, H) * 0.16
+  const maxBarH = Math.min(W, H) * 0.22
 
   for (let i = 0; i < count; i++) {
     const fi = Math.floor((i / count) * freq.length * 0.8)
     const target = (freq[fi] ?? 0) / 255 * sensitivity
-    smoothed[i] = lerp(smoothed[i] ?? 0, target, 0.18)
+    smoothed[i] = lerp(smoothed[i] ?? 0, target, 0.2)
 
     const angle = (i / count) * Math.PI * 2 - Math.PI / 2
-    const bh = smoothed[i] * maxBarH
+    const bh = smoothed[i] * maxBarH * (1 + kick * 0.3)
     const p = i / count
 
     const deckBlend = lerp(p, 1 - p, crossfader * 0.6 + 0.2)
-    const colA = pickColor("A", t, p * 2)
-    const colB = pickColor("B", t, p * 2)
+    const colA = pickColor("A", t, p * 2, centroid)
+    const colB = pickColor("B", t, p * 2, centroid)
     const segCol = lerpColor(colA, colB, deckBlend)
 
     const x1 = cx + Math.cos(angle) * innerR
@@ -233,9 +361,9 @@ function drawCircular(
     const x2 = cx + Math.cos(angle) * (innerR + bh)
     const y2 = cy + Math.sin(angle) * (innerR + bh)
 
-    const alpha = 0.35 + smoothed[i] * 0.5
-    ctx.strokeStyle = `rgba(${rgbStr(segCol)},${Math.min(0.9, alpha)})`
-    ctx.lineWidth = (W / count) * 0.5
+    const alpha = 0.2 + smoothed[i] * 0.3
+    ctx.strokeStyle = `rgba(${rgbStr(segCol)},${Math.min(0.5, alpha)})`
+    ctx.lineWidth = (W / count) * 0.35
     ctx.lineCap = "round"
     ctx.beginPath()
     ctx.moveTo(x1, y1)
@@ -243,27 +371,10 @@ function drawCircular(
     ctx.stroke()
   }
 
-  // Inner ring
-  const ringCol = pickColor(crossfader > 0.5 ? "B" : "A", t, 0)
-  ctx.strokeStyle = `rgba(${rgbStr(ringCol)},${0.12 + energy * 0.1})`
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.arc(cx, cy, innerR, 0, Math.PI * 2)
-  ctx.stroke()
-
-  if (beat > 0.3) {
-    const glowR = innerR * 0.7
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR)
-    grad.addColorStop(0, `rgba(${rgbStr(ringCol)},${beat * 0.06})`)
-    grad.addColorStop(1, `rgba(${rgbStr(ringCol)},0)`)
-    ctx.fillStyle = grad
-    ctx.beginPath()
-    ctx.arc(cx, cy, glowR, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
   ctx.restore()
 }
+
+// --- WAVEFORM ---
 
 function drawWave(
   ctx: CanvasRenderingContext2D,
@@ -274,6 +385,8 @@ function drawWave(
   t: number,
   crossfader: number,
   energy: number,
+  bass: number,
+  centroid: number,
 ) {
   const mid = H * 0.42
   const silent = timeDomain.every(v => Math.abs(v - 128) < 2)
@@ -283,11 +396,11 @@ function drawWave(
     for (let i = 0; i < count; i++) {
       const fi = Math.floor((i / count) * freq.length * 0.7)
       const v = (freq[fi] ?? 0) / 255 * sensitivity
-      const bh = v * H * 0.25
+      const bh = v * H * 0.25 * (1 + bass * 0.3)
       const x = (i / count) * W
       const bw = W / count
-      const barCol = pickColor(i < count / 2 ? "A" : "B", t, i * 0.1)
-      ctx.fillStyle = `rgba(${rgbStr(barCol)},${v * 0.06})`
+      const barCol = pickColor(i < count / 2 ? "A" : "B", t, i * 0.1, centroid)
+      ctx.fillStyle = `rgba(${rgbStr(barCol)},${v * 0.08})`
       ctx.fillRect(x, mid - bh * 0.5, bw, bh)
     }
   }
@@ -303,10 +416,10 @@ function drawWave(
   const len = timeDomain.length || 256
   const sliceW = W / len
 
-  const glowCol = pickColor(crossfader > 0.5 ? "B" : "A", t, 0)
+  const glowCol = pickColor(crossfader > 0.5 ? "B" : "A", t, 0, centroid)
   ctx.beginPath()
-  ctx.lineWidth = silent ? 3 : 2.5
-  ctx.strokeStyle = `rgba(${rgbStr(glowCol)},${silent ? 0.06 : 0.1})`
+  ctx.lineWidth = silent ? 3 : 2.5 + energy * 1.5
+  ctx.strokeStyle = `rgba(${rgbStr(glowCol)},${silent ? 0.06 : 0.12 + bass * 0.08})`
   ctx.lineJoin = "round"
   ctx.lineCap = "round"
   for (let i = 0; i < len; i++) {
@@ -316,10 +429,10 @@ function drawWave(
   ctx.stroke()
 
   ctx.beginPath()
-  ctx.lineWidth = (silent ? 1.5 : 1.2) + energy
-  const leftCol = pickColor("A", t, 0)
-  const midCol = pickColor(crossfader > 0.5 ? "B" : "A", t, 1)
-  const rightCol = pickColor("B", t, 0)
+  ctx.lineWidth = (silent ? 1.5 : 1.2) + energy * 1.5
+  const leftCol = pickColor("A", t, 0, centroid)
+  const midCol = pickColor(crossfader > 0.5 ? "B" : "A", t, 1, centroid)
+  const rightCol = pickColor("B", t, 0, centroid)
   const lineGrad = ctx.createLinearGradient(0, 0, W, 0)
   lineGrad.addColorStop(0, `rgba(${rgbStr(leftCol)},${silent ? 0.25 : 0.6})`)
   lineGrad.addColorStop(0.5, `rgba(${rgbStr(midCol)},${silent ? 0.5 : 0.85})`)
@@ -334,17 +447,19 @@ function drawWave(
   ctx.stroke()
 }
 
+// --- PARTICLES ---
 
 function updateAndDrawParticles(
   ctx: CanvasRenderingContext2D,
   particles: Particle[],
   crossfader: number,
   energy: number,
-  beat: number,
+  kick: number,
   W: number, H: number,
   t: number,
+  centroid: number,
+  transitionBoost: number,
 ) {
-  // Only spawn/draw particles when there's audio
   if (energy < 0.02 && particles.length === 0) return
 
   const cx = W / 2
@@ -353,10 +468,7 @@ function updateAndDrawParticles(
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]
     p.life--
-    if (p.life <= 0) {
-      particles.splice(i, 1)
-      continue
-    }
+    if (p.life <= 0) { particles.splice(i, 1); continue }
 
     const dx = p.x - cx
     const dy = p.y - cy
@@ -364,57 +476,252 @@ function updateAndDrawParticles(
 
     const tangentX = -dy / dist
     const tangentY = dx / dist
-    const swirl = 0.12 + energy * 0.3
+    const swirl = 0.12 + energy * 0.4
 
     p.vx += tangentX * swirl * 0.06 + (Math.random() - 0.5) * 0.03
     p.vy += tangentY * swirl * 0.06 + (Math.random() - 0.5) * 0.03
-    p.vx += (dx / dist) * (0.015 + energy * 0.04)
-    p.vy += (dy / dist) * (0.015 + energy * 0.04)
+    p.vx += (dx / dist) * (0.02 + energy * 0.06)
+    p.vy += (dy / dist) * (0.02 + energy * 0.06)
     p.vx *= 0.97
     p.vy *= 0.97
     p.x += p.vx
     p.y += p.vy
 
     const lifeRatio = p.life / p.maxLife
-    const alpha = lifeRatio * (0.1 + energy * 0.2) * Math.min(1, (1 - lifeRatio) * 5)
+    const alpha = lifeRatio * (0.12 + energy * 0.25) * Math.min(1, (1 - lifeRatio) * 5)
+
+    if (p.glow) {
+      const glowSize = p.size * 3
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize)
+      grad.addColorStop(0, `rgba(${rgbStr(p.col)},${alpha * 0.4})`)
+      grad.addColorStop(1, `rgba(${rgbStr(p.col)},0)`)
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, glowSize, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
     ctx.fillStyle = `rgba(${rgbStr(p.col)},${alpha})`
     ctx.beginPath()
     ctx.arc(p.x, p.y, p.size * (0.3 + lifeRatio * 0.7), 0, Math.PI * 2)
     ctx.fill()
   }
 
-  // Only spawn when there's energy
+  // Spawn rate boosted during transitions
+  const spawnMult = 1 + transitionBoost * 2
   if (energy > 0.03) {
-    const spawnCount = Math.floor(energy * 3 + 0.3) + (beat > 0.5 ? 2 : 0)
+    const spawnCount = Math.floor((energy * energy * 8 + 0.5) * spawnMult)
     for (let i = 0; i < spawnCount; i++) {
       const deck: "A" | "B" = Math.random() < crossfader ? "B" : "A"
-      const col = pickColor(deck, t, Math.random() * 3)
-      particles.push(spawnParticle(W, H, col))
+      const col = pickColor(deck, t, Math.random() * 3, centroid)
+      particles.push(spawnParticle(W, H, col, energy, false))
     }
   }
 
-  if (particles.length > 200) {
-    particles.splice(0, particles.length - 200)
+  if (kick > 0.5) {
+    const burstCount = Math.floor((8 + kick * 6) * spawnMult)
+    for (let i = 0; i < burstCount; i++) {
+      const deck: "A" | "B" = Math.random() < crossfader ? "B" : "A"
+      const col = pickColor(deck, t, Math.random() * 3, centroid)
+      particles.push(spawnParticle(W, H, col, energy, true))
+    }
+  }
+
+  // During transitions, spawn edge particles (both deck colors streaming in)
+  if (transitionBoost > 0.1) {
+    const edgeCount = Math.floor(transitionBoost * 3)
+    for (let i = 0; i < edgeCount; i++) {
+      const colA = pickColor("A", t, Math.random() * 3, centroid)
+      const colB = pickColor("B", t, Math.random() * 3, centroid)
+      particles.push(spawnEdgeParticle(W, H, colA, true))
+      particles.push(spawnEdgeParticle(W, H, colB, false))
+    }
+  }
+
+  const maxParticles = 400 + Math.floor(transitionBoost * 200)
+  if (particles.length > maxParticles) {
+    particles.splice(0, particles.length - maxParticles)
+  }
+}
+
+// --- TRANSITION EFFECTS ---
+
+function drawTransitionEffects(
+  ctx: CanvasRenderingContext2D,
+  W: number, H: number,
+  t: number,
+  crossfader: number,
+  progress: number,
+  centroid: number,
+  energy: number,
+) {
+  // Clash intensity peaks when crossfader near 0.5 (both decks audible)
+  const clashIntensity = 1 - Math.abs(crossfader - 0.5) * 2
+  // Mid-transition is most intense
+  const midIntensity = 1 - Math.abs(progress - 0.5) * 2
+
+  const colA = pickColor("A", t, 0, centroid)
+  const colB = pickColor("B", t, 0, centroid)
+  const splitX = crossfader * W
+
+  // 1. Deck color wash — A on left, B on right, fading toward center
+  const washAlpha = clashIntensity * 0.07 + midIntensity * 0.03
+  const gradA = ctx.createLinearGradient(0, 0, splitX + W * 0.1, 0)
+  gradA.addColorStop(0, `rgba(${rgbStr(colA)},${washAlpha})`)
+  gradA.addColorStop(1, `rgba(${rgbStr(colA)},0)`)
+  ctx.fillStyle = gradA
+  ctx.fillRect(0, 0, splitX + W * 0.1, H)
+
+  const gradB = ctx.createLinearGradient(splitX - W * 0.1, 0, W, 0)
+  gradB.addColorStop(0, `rgba(${rgbStr(colB)},0)`)
+  gradB.addColorStop(1, `rgba(${rgbStr(colB)},${washAlpha})`)
+  ctx.fillStyle = gradB
+  ctx.fillRect(splitX - W * 0.1, 0, W - splitX + W * 0.1, H)
+
+  // 2. Crossfader wipe line — sweeps with the mix position
+  const lineCol = lerpColor(colA, colB, crossfader)
+  const lineAlpha = 0.12 + midIntensity * 0.15
+
+  // Wide glow
+  const wipeGlow = ctx.createLinearGradient(splitX - 50, 0, splitX + 50, 0)
+  wipeGlow.addColorStop(0, `rgba(${rgbStr(lineCol)},0)`)
+  wipeGlow.addColorStop(0.5, `rgba(${rgbStr(lineCol)},${lineAlpha * 0.35})`)
+  wipeGlow.addColorStop(1, `rgba(${rgbStr(lineCol)},0)`)
+  ctx.fillStyle = wipeGlow
+  ctx.fillRect(splitX - 50, 0, 100, H)
+
+  // Core line
+  ctx.strokeStyle = `rgba(${rgbStr(lineCol)},${lineAlpha})`
+  ctx.lineWidth = 1.5 + midIntensity * 2
+  ctx.beginPath()
+  ctx.moveTo(splitX, 0)
+  ctx.lineTo(splitX, H)
+  ctx.stroke()
+
+  // 3. Horizontal energy ripples — pulsing waves across the screen
+  if (midIntensity > 0.2) {
+    for (let r = 0; r < 3; r++) {
+      const rippleY = H * (0.2 + r * 0.25 + Math.sin(t * 1.5 + r * 2) * 0.08)
+      const rippleAlpha = midIntensity * 0.04 * (1 + energy * 0.5)
+      const rCol = r % 2 === 0 ? colA : colB
+      const ripGrad = ctx.createLinearGradient(0, rippleY - 25, 0, rippleY + 25)
+      ripGrad.addColorStop(0, `rgba(${rgbStr(rCol)},0)`)
+      ripGrad.addColorStop(0.5, `rgba(${rgbStr(rCol)},${rippleAlpha})`)
+      ripGrad.addColorStop(1, `rgba(${rgbStr(rCol)},0)`)
+      ctx.fillStyle = ripGrad
+      ctx.fillRect(0, rippleY - 25, W, 50)
+    }
+  }
+
+  // 4. Color clash sparks at the wipe line
+  if (clashIntensity > 0.4) {
+    const sparkCount = Math.floor(clashIntensity * 6)
+    for (let i = 0; i < sparkCount; i++) {
+      const sy = Math.random() * H
+      const sx = splitX + (Math.random() - 0.5) * 20
+      const sparkCol = Math.random() < 0.5 ? colA : colB
+      const sparkAlpha = clashIntensity * 0.3 * Math.random()
+      const sparkSize = 1 + Math.random() * 2
+
+      const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, sparkSize * 3)
+      grad.addColorStop(0, `rgba(${rgbStr(sparkCol)},${sparkAlpha})`)
+      grad.addColorStop(1, `rgba(${rgbStr(sparkCol)},0)`)
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(sx, sy, sparkSize * 3, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+}
+
+// --- POST EFFECTS ---
+
+function drawPostEffects(
+  ctx: CanvasRenderingContext2D,
+  W: number, H: number,
+  t: number,
+  energy: number,
+  bass: number,
+  flash: number,
+  flashCol: number[],
+) {
+  // Scanlines
+  if (energy > 0.05) {
+    const alpha = Math.min(0.05, energy * 0.06)
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`
+    for (let y = 0; y < H; y += 3) {
+      ctx.fillRect(0, y, W, 1)
+    }
+
+    const scanY = ((t * 60 + energy * 180) % (H + 80)) - 40
+    const scanGrad = ctx.createLinearGradient(0, scanY - 30, 0, scanY + 30)
+    scanGrad.addColorStop(0, "rgba(255,255,255,0)")
+    scanGrad.addColorStop(0.5, `rgba(255,255,255,${energy * 0.03})`)
+    scanGrad.addColorStop(1, "rgba(255,255,255,0)")
+    ctx.fillStyle = scanGrad
+    ctx.fillRect(0, scanY - 30, W, 60)
+  }
+
+  // Vignette
+  const vignetteStrength = 0.3 + bass * 0.4
+  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7)
+  vigGrad.addColorStop(0, "rgba(0,0,0,0)")
+  vigGrad.addColorStop(1, `rgba(0,0,0,${vignetteStrength})`)
+  ctx.fillStyle = vigGrad
+  ctx.fillRect(0, 0, W, H)
+
+  // Colored beat flash
+  if (flash > 0.01) {
+    ctx.fillStyle = `rgba(${rgbStr(flashCol)},${flash * 0.12})`
+    ctx.fillRect(0, 0, W, H)
   }
 }
 
 
-export function ThreeVisualizer({ analyserData, musicObject }: VisualizerProps) {
+export function ThreeVisualizer({ analyserData, musicObject, transitionState }: VisualizerProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const smoothedRef = useRef(new Float32Array(512))
   const animRef = useRef<number>(0)
   const dataRef = useRef(analyserData)
   const objRef = useRef(musicObject)
+  const transRef = useRef(transitionState)
   const particlesRef = useRef<Particle[]>([])
+  const shockwavesRef = useRef<ShockWave[]>([])
+  const laserBeamsRef = useRef<LaserBeam[]>([])
+
+  // Core analysis
   const energyRef = useRef(0)
   const prevEnergyRef = useRef(0)
-  const beatRef = useRef(0)
-  const modeBlendRef = useRef(0)
   const avgEnergyRef = useRef(0)
+  const modeBlendRef = useRef(0)
+
+  // Multi-band energy
+  const bassRef = useRef(0)
+  const highRef = useRef(0)
+
+  // Multi-band beat detection
+  const kickRef = useRef(0)
+  const snareRef = useRef(0)
+  const hatRef = useRef(0)
+  const kickAvgRef = useRef(0)
+  const snareAvgRef = useRef(0)
+  const hatAvgRef = useRef(0)
+
+  // Circle visibility (beat-only)
+  const circleVisRef = useRef(0)
+
+  // Effects
+  const flashRef = useRef(0)
+  const shakeRef = useRef({ x: 0, y: 0 })
+  const centroidRef = useRef(0.5)
+
+  // Transition tracking
+  const wasTransitionRef = useRef(false)
 
   dataRef.current = analyserData
   objRef.current = musicObject
+  transRef.current = transitionState
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current
@@ -447,66 +754,211 @@ export function ThreeVisualizer({ analyserData, musicObject }: VisualizerProps) 
       const H = wrap.clientHeight
       const { frequency, timeDomain } = dataRef.current
       const { visualSensitivity, crossfader } = objRef.current
+      const trans = transRef.current
       const s = visualSensitivity ?? 0.7
       const t = (performance.now() - startTime) / 1000
       const cf = crossfader ?? 0.5
 
-      // --- Energy ---
-      let totalEnergy = 0
-      let bassEnergy = 0
-      const len = Math.min(frequency.length, 512)
-      const bassEnd = Math.floor(len * 0.15)
+      const isTransitioning = trans?.isActive ?? false
+      const transProgress = trans?.progress ?? 0
+      // 0-1 intensity: peaks mid-transition
+      const transBoost = isTransitioning ? (1 - Math.abs(transProgress - 0.5) * 2) : 0
+
+      // --- Transition end detection (finale burst) ---
+      if (wasTransitionRef.current && !isTransitioning) {
+        flashRef.current = 1.0
+        const finaleCol = pickColor(cf > 0.5 ? "B" : "A", t, 0, centroidRef.current)
+        for (let i = 0; i < 3; i++) {
+          shockwavesRef.current.push({
+            radius: Math.min(W, H) * (0.03 + i * 0.04),
+            maxRadius: Math.min(W, H) * (0.5 + i * 0.15),
+            alpha: 0.5 - i * 0.1,
+            col: finaleCol,
+          })
+        }
+        // Burst of particles from both edges
+        for (let i = 0; i < 20; i++) {
+          const col = pickColor(i % 2 === 0 ? "A" : "B", t, Math.random() * 3, centroidRef.current)
+          particlesRef.current.push(spawnEdgeParticle(W, H, col, i % 2 === 0))
+        }
+      }
+      wasTransitionRef.current = isTransitioning
+
+      // --- Multi-band frequency analysis ---
+      const len = Math.min(frequency.length, 1024)
+      const binWidth = 22050 / len
+      const kickEnd = Math.min(len, Math.floor(150 / binWidth))
+      const snareEnd = Math.min(len, Math.floor(2000 / binWidth))
+      const hatStart = Math.min(len, Math.floor(6000 / binWidth))
+
+      let totalE = 0, bassE = 0, midE = 0, highE = 0, weightedSum = 0
       for (let i = 0; i < len; i++) {
-        totalEnergy += frequency[i]
-        if (i < bassEnd) bassEnergy += frequency[i]
+        const v = frequency[i] / 255
+        totalE += v
+        weightedSum += v * i
+        if (i < kickEnd) bassE += v
+        else if (i < snareEnd) midE += v
+        else if (i >= hatStart) highE += v
       }
-      totalEnergy /= len * 255
-      bassEnergy /= bassEnd * 255
+      totalE /= len
+      bassE /= kickEnd || 1
+      midE /= (snareEnd - kickEnd) || 1
+      highE /= (len - hatStart) || 1
+
       prevEnergyRef.current = energyRef.current
-      energyRef.current = lerp(energyRef.current, totalEnergy, 0.12)
-      avgEnergyRef.current = lerp(avgEnergyRef.current, totalEnergy, 0.015)
+      energyRef.current = lerp(energyRef.current, totalE, 0.12)
+      avgEnergyRef.current = lerp(avgEnergyRef.current, totalE, 0.015)
+      bassRef.current = lerp(bassRef.current, bassE, 0.15)
+      highRef.current = lerp(highRef.current, highE, 0.12)
 
-      // --- Beat detection ---
-      const delta = energyRef.current - prevEnergyRef.current
-      if (delta > 0.02 || bassEnergy - prevEnergyRef.current > 0.035) {
-        beatRef.current = Math.min(1, 0.6 + bassEnergy * 0.4)
+      const rawCentroid = totalE > 0.01 ? weightedSum / (totalE * len) / len : 0.5
+      centroidRef.current = lerp(centroidRef.current, rawCentroid, 0.08)
+
+      // --- Multi-band beat detection ---
+      kickAvgRef.current = lerp(kickAvgRef.current, bassE, 0.06)
+      if (bassE > kickAvgRef.current * 1.4 && bassE > 0.15) {
+        kickRef.current = Math.min(1, 0.5 + bassE * 0.5)
       } else {
-        beatRef.current *= 0.9
+        kickRef.current *= 0.88
       }
 
-      // --- Auto mode: circular vs wave (no spectrum) ---
-      const avgE = avgEnergyRef.current
+      snareAvgRef.current = lerp(snareAvgRef.current, midE, 0.07)
+      if (midE > snareAvgRef.current * 1.3 && midE > 0.1) {
+        snareRef.current = Math.min(1, 0.4 + midE * 0.5)
+      } else {
+        snareRef.current *= 0.9
+      }
+
+      hatAvgRef.current = lerp(hatAvgRef.current, highE, 0.08)
+      if (highE > hatAvgRef.current * 1.3 && highE > 0.08) {
+        hatRef.current = Math.min(1, 0.3 + highE * 0.5)
+      } else {
+        hatRef.current *= 0.92
+      }
+
+      // --- Circle visibility ---
+      if (kickRef.current > 0.4) {
+        circleVisRef.current = Math.min(0.4, 0.25 + kickRef.current * 0.15)
+      } else {
+        circleVisRef.current *= 0.94
+      }
+
+      // --- Flash & shake (boosted during transitions) ---
+      const shakeBoost = 1 + transBoost * 1.5
+      if (kickRef.current > 0.6) {
+        flashRef.current = Math.min(1, kickRef.current * (0.8 + transBoost * 0.4))
+        shakeRef.current = {
+          x: (Math.random() - 0.5) * kickRef.current * 8 * shakeBoost,
+          y: (Math.random() - 0.5) * kickRef.current * 5 * shakeBoost,
+        }
+      } else {
+        flashRef.current *= 0.85
+        shakeRef.current.x *= 0.8
+        shakeRef.current.y *= 0.8
+      }
+
+      // --- Spawn shockwaves on kick (boosted during transitions) ---
+      const waveThreshold = isTransitioning ? 0.35 : 0.5
+      if (kickRef.current > waveThreshold && shockwavesRef.current.length < (isTransitioning ? 8 : 5)) {
+        const waveDeck: "A" | "B" = isTransitioning
+          ? (Math.random() < 0.5 ? "A" : "B") // alternate colors during transition
+          : (cf > 0.5 ? "B" : "A")
+        const col = pickColor(waveDeck, t, 0, centroidRef.current)
+        shockwavesRef.current.push({
+          radius: Math.min(W, H) * 0.04,
+          maxRadius: Math.min(W, H) * (0.45 + transBoost * 0.15),
+          alpha: 0.3 + kickRef.current * 0.15 + transBoost * 0.1,
+          col,
+        })
+      }
+
+      // --- Spawn laser beams on snare (more during transitions) ---
+      const beamLimit = isTransitioning ? 12 : 8
+      if (snareRef.current > 0.4 && laserBeamsRef.current.length < beamLimit) {
+        const beamCount = 2 + Math.floor(snareRef.current * 3) + (isTransitioning ? 2 : 0)
+        for (let i = 0; i < beamCount; i++) {
+          const angle = -Math.PI * (0.1 + Math.random() * 0.8)
+          const beamDeck = isTransitioning
+            ? (i % 2 === 0 ? "A" : "B")
+            : (Math.random() < 0.5 ? "A" : "B")
+          const col = pickColor(beamDeck, t, Math.random() * 3, centroidRef.current)
+          laserBeamsRef.current.push({
+            angle,
+            length: Math.max(W, H) * (0.5 + Math.random() * 0.5),
+            life: 25 + Math.floor(Math.random() * 35),
+            maxLife: 60,
+            col,
+          })
+        }
+      }
+
+      // --- During transitions: periodic colored flashes ---
+      if (isTransitioning && Math.sin(t * 4 + transProgress * 10) > 0.8) {
+        const flashDeck: "A" | "B" = Math.sin(t * 3) > 0 ? "A" : "B"
+        const fCol = pickColor(flashDeck, t, 0, centroidRef.current)
+        flashRef.current = Math.max(flashRef.current, 0.3 + transBoost * 0.3)
+        // Override flash color handled in post effects
+        void fCol
+      }
+
+      // --- Mode blend ---
+      const avgE2 = avgEnergyRef.current
       let target = 0
-      if (avgE < 0.15) target = 0
-      else if (avgE < 0.35) target = ((avgE - 0.15) / 0.2) * 0.5
-      else target = 0.5 + (Math.min(avgE, 0.7) - 0.35) / 0.35 * 0.5
+      if (avgE2 < 0.15) target = 0
+      else if (avgE2 < 0.35) target = ((avgE2 - 0.15) / 0.2) * 0.5
+      else target = 0.5 + (Math.min(avgE2, 0.7) - 0.35) / 0.35 * 0.5
       modeBlendRef.current = lerp(modeBlendRef.current, target, 0.012)
 
       if (W < 1 || H < 1) { animRef.current = requestAnimationFrame(draw); return }
 
       const energy = energyRef.current
-      const beat = beatRef.current
+      const bass = bassRef.current
+      const kick = kickRef.current
+      const hat = hatRef.current
       const blend = modeBlendRef.current
+      const centroid = centroidRef.current
+      const circleVis = circleVisRef.current
 
-      // --- Draw vaporwave background (sky + sun + scrolling grid) ---
-      drawBackground(ctx, W, H, t, energy, beat)
+      // --- Camera shake ---
+      ctx.save()
+      ctx.translate(shakeRef.current.x, shakeRef.current.y)
 
-      // --- Draw active mode (circular fades in with audio, wave for higher energy) ---
+      // --- Background ---
+      drawBackground(ctx, W, H, t, energy, bass, kick, hat)
+
+      // --- Laser beams ---
+      drawLaserBeams(ctx, laserBeamsRef.current, W, H)
+
+      // --- Shockwaves (behind viz, centered on horizon) ---
+      drawShockwaves(ctx, shockwavesRef.current, W, H)
+
+      // --- Transition effects (color wash, wipe line, ripples) ---
+      if (isTransitioning) {
+        drawTransitionEffects(ctx, W, H, t, cf, transProgress, centroid, energy)
+      }
+
+      // --- Visualization modes ---
       if (blend < 0.45) {
-        drawCircular(ctx, frequency, W, H, s, smoothedRef.current, t, cf, energy, beat)
+        drawCircular(ctx, frequency, W, H, s, smoothedRef.current, t, cf, circleVis, kick, centroid)
       } else if (blend < 0.7) {
         const waveStrength = (blend - 0.45) / 0.25
         ctx.globalAlpha = 1 - waveStrength
-        drawCircular(ctx, frequency, W, H, s, smoothedRef.current, t, cf, energy, beat)
+        drawCircular(ctx, frequency, W, H, s, smoothedRef.current, t, cf, circleVis, kick, centroid)
         ctx.globalAlpha = waveStrength
-        drawWave(ctx, timeDomain, frequency, W, H, s, t, cf, energy)
+        drawWave(ctx, timeDomain, frequency, W, H, s, t, cf, energy, bass, centroid)
         ctx.globalAlpha = 1
       } else {
-        drawWave(ctx, timeDomain, frequency, W, H, s, t, cf, energy)
+        drawWave(ctx, timeDomain, frequency, W, H, s, t, cf, energy, bass, centroid)
       }
 
-      // --- Particles (only with audio) ---
-      updateAndDrawParticles(ctx, particlesRef.current, cf, energy, beat, W, H, t)
+      // --- Particles ---
+      updateAndDrawParticles(ctx, particlesRef.current, cf, energy, kick, W, H, t, centroid, transBoost)
+
+      ctx.restore()
+
+      // --- Post effects (no shake) ---
+      const flashCol = pickColor(cf > 0.5 ? "B" : "A", t, 0, centroid)
+      drawPostEffects(ctx, W, H, t, energy, bass, flashRef.current, flashCol)
 
       animRef.current = requestAnimationFrame(draw)
     }

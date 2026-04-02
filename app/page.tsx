@@ -333,7 +333,7 @@ export default function DJSystem() {
       <div className="relative h-dvh w-screen max-w-[100vw] overflow-hidden bg-[#0d0221]">
         {/* Fullscreen visualizer background */}
         <div className="absolute inset-0 z-0">
-          <ThreeVisualizer analyserData={analyserData} musicObject={musicObject} />
+          <ThreeVisualizer analyserData={analyserData} musicObject={musicObject} transitionState={transitionState} />
         </div>
 
 
