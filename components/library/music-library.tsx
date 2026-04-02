@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import type { Track } from "@/lib/types"
 import { useTracks } from "@/hooks/use-tracks"
 import { Upload, Search, Loader2, Sparkles, Trash2, Music } from "lucide-react"
@@ -21,6 +21,14 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
   const [failedIds, setFailedIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [canScrollDown, setCanScrollDown] = useState(false)
+
+  const checkScroll = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    setCanScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 20)
+  }, [])
 
   const filtered = tracks.filter((t) =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -63,6 +71,9 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracks, analyzingId, failedIds])
 
+  // Check scroll state when tracks change
+  useEffect(() => { checkScroll() }, [filtered.length, checkScroll])
+
   return (
     <div className="overflow-hidden flex flex-col h-full">
       {/* Search + upload */}
@@ -89,7 +100,7 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
       </div>
 
       {/* Track list */}
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      <div ref={listRef} className="flex-1 overflow-y-auto relative" style={{ scrollbarWidth: "none" }} onScroll={checkScroll}>
         <div className="px-2 pb-2 space-y-0.5">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -164,6 +175,12 @@ export function MusicLibrary({ onLoadToDeck, trackA, trackB }: MusicLibraryProps
             })
           )}
         </div>
+        {/* Scroll indicator */}
+        {canScrollDown && (
+          <div className="sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#110328] to-transparent pointer-events-none flex items-end justify-center pb-1">
+            <span className="text-[8px] font-mono text-violet-300/25 animate-pulse">more tracks</span>
+          </div>
+        )}
       </div>
     </div>
   )

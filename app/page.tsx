@@ -1,20 +1,22 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import dynamic from "next/dynamic"
 import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
-import { findBestEntryPoint } from "@/lib/song-structure"
+import { findBestEntryPoint, findNextExitPoint } from "@/lib/song-structure"
 import { useMusicEngine } from "@/hooks/use-music-engine"
 import { useTracks } from "@/hooks/use-tracks"
 import { ThreeVisualizer } from "@/components/visualizer/three-visualizer"
 import { TopBar } from "@/components/top-bar"
 import { TransportBar } from "@/components/transport-bar"
-import { MixerPanel } from "@/components/mixer-panel"
-import { LibraryDrawer } from "@/components/library-drawer"
-import { AIPanel } from "@/components/ai-panel"
 import { DraggableCard } from "@/components/draggable-card"
-import { DjHelpModal } from "@/components/dj/dj-help-modal"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { SlidersHorizontal, Library, Sparkles } from "lucide-react"
+
+const MixerPanel = dynamic(() => import("@/components/mixer-panel").then(m => m.MixerPanel), { ssr: false })
+const LibraryDrawer = dynamic(() => import("@/components/library-drawer").then(m => m.LibraryDrawer), { ssr: false })
+const AIPanel = dynamic(() => import("@/components/ai-panel").then(m => m.AIPanel), { ssr: false })
+const DjHelpModal = dynamic(() => import("@/components/dj/dj-help-modal").then(m => m.DjHelpModal), { ssr: false })
 
 export default function DJSystem() {
   const { tracks } = useTracks()
@@ -65,6 +67,12 @@ export default function DJSystem() {
   const [aiExpanded, setAiExpanded] = useState(false)
   const [mixerExpanded, setMixerExpanded] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+
+  const handleTourOpenCard = useCallback((cardId: string) => {
+    if (cardId === "library") setLibraryExpanded(true)
+    else if (cardId === "mixer") setMixerExpanded(true)
+    else if (cardId === "ai-copilot") setAiExpanded(true)
+  }, [])
   const [winSize, setWinSize] = useState({ w: 1280, h: 800 })
 
   useEffect(() => {
@@ -159,25 +167,43 @@ export default function DJSystem() {
 
       const incomingPlaying = incomingDeck === "A" ? isPlayingA : isPlayingB
       const incomingStructure = incomingDeck === "A" ? structureA : structureB
-      const structureEntry = incomingStructure ? findBestEntryPoint(incomingStructure).time : 0
-      const cuePoint = (plan.incomingStartSeconds && plan.incomingStartSeconds > 0)
-        ? plan.incomingStartSeconds
-        : structureEntry
-      if (cuePoint > 0) seek(incomingDeck, cuePoint)
+      const transDuration = plan.durationSeconds ?? 16
+      const structureEntry = incomingStructure ? findBestEntryPoint(incomingStructure, transDuration).time : 0
+      // Structure analysis is authoritative — only fall back to AI's value when no structure
+      const cuePoint = structureEntry > 0
+        ? structureEntry
+        : (plan.incomingStartSeconds ?? 0)
 
+      // Pre-set crossfader to safe position (incoming silent) before delay
       let actualCrossfader = musicObject.crossfader
-
       if (!incomingPlaying && (incomingDeck === "A" ? trackA : trackB)) {
         const safeStart = outgoingDeck === "A" ? 0 : 1
         setCrossfade(safeStart)
         updateMusicObject({ crossfader: safeStart })
         actualCrossfader = safeStart
-        play(incomingDeck)
       }
 
-      const startDelay = (plan.startDelay || 0) * 1000
+      // Use song structure for exit timing (authoritative), fall back to AI's suggestion
+      const outgoingStructure = outgoingDeck === "A" ? structureA : structureB
+      const outgoingTime = outgoingDeck === "A" ? currentTimeA : currentTimeB
+      const outgoingDuration = outgoingDeck === "A" ? durationA : durationB
+      let effectiveDelay: number
+      if (outgoingStructure && outgoingTime !== undefined) {
+        const exit = findNextExitPoint(outgoingStructure, outgoingTime, outgoingDuration)
+        effectiveDelay = exit.delay * 1000
+      } else {
+        effectiveDelay = (plan.startDelay || 0) * 1000
+      }
+      // Cap delay to prevent long dead waits
+      effectiveDelay = Math.min(effectiveDelay, 15000)
 
       setTimeout(() => {
+        // Seek and play incoming when the blend begins
+        if (cuePoint > 0) seek(incomingDeck, cuePoint)
+        if (!incomingPlaying && (incomingDeck === "A" ? trackA : trackB)) {
+          play(incomingDeck)
+        }
+
         const adjustedPlan = { ...plan }
 
         if (outgoingDeck === "B") {
@@ -222,9 +248,9 @@ export default function DJSystem() {
         if (plan.visualizerConfig) {
           updateMusicObject(plan.visualizerConfig)
         }
-      }, Math.max(startDelay, incomingPlaying ? 0 : 150))
+      }, Math.max(effectiveDelay, incomingPlaying ? 0 : 150))
     },
-    [applyTransitionPlan, updateMusicObject, isPlayingA, isPlayingB, trackA, trackB, structureA, structureB, play, seek, setCrossfade, musicObject.crossfader],
+    [applyTransitionPlan, updateMusicObject, isPlayingA, isPlayingB, trackA, trackB, structureA, structureB, play, seek, setCrossfade, musicObject.crossfader, currentTimeA, currentTimeB, durationA, durationB],
   )
 
   const handleApplyPreset = useCallback(
@@ -332,7 +358,7 @@ export default function DJSystem() {
     <ErrorBoundary>
       <div className="relative h-dvh w-screen max-w-[100vw] overflow-hidden bg-[#0d0221]">
         {/* Fullscreen visualizer background */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0" data-tour-id="visualizer">
           <ThreeVisualizer analyserData={analyserData} musicObject={musicObject} transitionState={transitionState} />
         </div>
 
@@ -461,7 +487,7 @@ export default function DJSystem() {
           />
         </DraggableCard>
 
-        <DjHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+        <DjHelpModal open={showHelp} onClose={() => setShowHelp(false)} onOpenCard={handleTourOpenCard} />
       </div>
     </ErrorBoundary>
   )

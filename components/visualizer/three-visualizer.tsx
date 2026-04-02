@@ -77,11 +77,6 @@ interface Particle {
   glow: boolean
 }
 
-interface ShockWave {
-  radius: number; maxRadius: number
-  alpha: number; col: number[]
-}
-
 interface LaserBeam {
   angle: number; length: number
   life: number; maxLife: number; col: number[]
@@ -282,41 +277,6 @@ function drawLaserBeams(
   }
 }
 
-// --- SHOCKWAVES (kick-triggered, integrated into background) ---
-
-function drawShockwaves(
-  ctx: CanvasRenderingContext2D,
-  waves: ShockWave[],
-  W: number, H: number,
-) {
-  const cx = W / 2
-  const horizonY = H * 0.55
-
-  for (let i = waves.length - 1; i >= 0; i--) {
-    const w = waves[i]
-    w.radius += (w.maxRadius - w.radius) * 0.03 + 2.5
-    w.alpha *= 0.97
-    if (w.alpha < 0.008 || w.radius > w.maxRadius * 0.98) {
-      waves.splice(i, 1)
-      continue
-    }
-
-    // Draw as a soft radial gradient ring centered on horizon (feels like it's part of the scene)
-    const innerR = Math.max(0, w.radius - 8)
-    const outerR = w.radius + 8
-    const grad = ctx.createRadialGradient(cx, horizonY, innerR, cx, horizonY, outerR)
-    grad.addColorStop(0, `rgba(${rgbStr(w.col)},0)`)
-    grad.addColorStop(0.3, `rgba(${rgbStr(w.col)},${w.alpha * 0.6})`)
-    grad.addColorStop(0.5, `rgba(${rgbStr(w.col)},${w.alpha})`)
-    grad.addColorStop(0.7, `rgba(${rgbStr(w.col)},${w.alpha * 0.6})`)
-    grad.addColorStop(1, `rgba(${rgbStr(w.col)},0)`)
-    ctx.fillStyle = grad
-    ctx.beginPath()
-    ctx.arc(cx, horizonY, outerR, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
 // --- CIRCULAR (beat-only, subtle) ---
 
 function drawCircular(
@@ -337,7 +297,7 @@ function drawCircular(
   ctx.globalAlpha = circleVis
 
   const cx = W / 2
-  const cy = H * 0.42
+  const cy = H * 0.5
   const count = 64
   const innerR = Math.min(W, H) * 0.16
   const maxBarH = Math.min(W, H) * 0.22
@@ -578,27 +538,7 @@ function drawTransitionEffects(
   ctx.fillStyle = gradB
   ctx.fillRect(splitX - W * 0.1, 0, W - splitX + W * 0.1, H)
 
-  // 2. Crossfader wipe line — sweeps with the mix position
-  const lineCol = lerpColor(colA, colB, crossfader)
-  const lineAlpha = 0.12 + midIntensity * 0.15
-
-  // Wide glow
-  const wipeGlow = ctx.createLinearGradient(splitX - 50, 0, splitX + 50, 0)
-  wipeGlow.addColorStop(0, `rgba(${rgbStr(lineCol)},0)`)
-  wipeGlow.addColorStop(0.5, `rgba(${rgbStr(lineCol)},${lineAlpha * 0.35})`)
-  wipeGlow.addColorStop(1, `rgba(${rgbStr(lineCol)},0)`)
-  ctx.fillStyle = wipeGlow
-  ctx.fillRect(splitX - 50, 0, 100, H)
-
-  // Core line
-  ctx.strokeStyle = `rgba(${rgbStr(lineCol)},${lineAlpha})`
-  ctx.lineWidth = 1.5 + midIntensity * 2
-  ctx.beginPath()
-  ctx.moveTo(splitX, 0)
-  ctx.lineTo(splitX, H)
-  ctx.stroke()
-
-  // 3. Horizontal energy ripples — pulsing waves across the screen
+  // 2. Horizontal energy ripples — pulsing waves across the screen
   if (midIntensity > 0.2) {
     for (let r = 0; r < 3; r++) {
       const rippleY = H * (0.2 + r * 0.25 + Math.sin(t * 1.5 + r * 2) * 0.08)
@@ -613,25 +553,6 @@ function drawTransitionEffects(
     }
   }
 
-  // 4. Color clash sparks at the wipe line
-  if (clashIntensity > 0.4) {
-    const sparkCount = Math.floor(clashIntensity * 6)
-    for (let i = 0; i < sparkCount; i++) {
-      const sy = Math.random() * H
-      const sx = splitX + (Math.random() - 0.5) * 20
-      const sparkCol = Math.random() < 0.5 ? colA : colB
-      const sparkAlpha = clashIntensity * 0.3 * Math.random()
-      const sparkSize = 1 + Math.random() * 2
-
-      const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, sparkSize * 3)
-      grad.addColorStop(0, `rgba(${rgbStr(sparkCol)},${sparkAlpha})`)
-      grad.addColorStop(1, `rgba(${rgbStr(sparkCol)},0)`)
-      ctx.fillStyle = grad
-      ctx.beginPath()
-      ctx.arc(sx, sy, sparkSize * 3, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
 }
 
 // --- POST EFFECTS ---
@@ -681,13 +602,13 @@ function drawPostEffects(
 export function ThreeVisualizer({ analyserData, musicObject, transitionState }: VisualizerProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const trailCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const smoothedRef = useRef(new Float32Array(512))
   const animRef = useRef<number>(0)
   const dataRef = useRef(analyserData)
   const objRef = useRef(musicObject)
   const transRef = useRef(transitionState)
   const particlesRef = useRef<Particle[]>([])
-  const shockwavesRef = useRef<ShockWave[]>([])
   const laserBeamsRef = useRef<LaserBeam[]>([])
 
   // Core analysis
@@ -731,6 +652,13 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
+    // Offscreen canvas for waveform trail/footprint effect
+    if (!trailCanvasRef.current) {
+      trailCanvasRef.current = document.createElement("canvas")
+    }
+    const trailCanvas = trailCanvasRef.current
+    const trailCtx = trailCanvas.getContext("2d")!
+
     const resize = () => {
       const w = wrap.clientWidth
       const h = wrap.clientHeight
@@ -738,8 +666,12 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
       if (w < 1 || h < 1) return
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
+      trailCanvas.width = Math.round(w * dpr)
+      trailCanvas.height = Math.round(h * dpr)
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
+      trailCtx.setTransform(1, 0, 0, 1, 0, 0)
+      trailCtx.scale(dpr, dpr)
     }
 
     const ro = new ResizeObserver(() => resize())
@@ -767,15 +699,6 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
       // --- Transition end detection (finale burst) ---
       if (wasTransitionRef.current && !isTransitioning) {
         flashRef.current = 1.0
-        const finaleCol = pickColor(cf > 0.5 ? "B" : "A", t, 0, centroidRef.current)
-        for (let i = 0; i < 3; i++) {
-          shockwavesRef.current.push({
-            radius: Math.min(W, H) * (0.03 + i * 0.04),
-            maxRadius: Math.min(W, H) * (0.5 + i * 0.15),
-            alpha: 0.5 - i * 0.1,
-            col: finaleCol,
-          })
-        }
         // Burst of particles from both edges
         for (let i = 0; i < 20; i++) {
           const col = pickColor(i % 2 === 0 ? "A" : "B", t, Math.random() * 3, centroidRef.current)
@@ -857,21 +780,6 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
         shakeRef.current.y *= 0.8
       }
 
-      // --- Spawn shockwaves on kick (boosted during transitions) ---
-      const waveThreshold = isTransitioning ? 0.35 : 0.5
-      if (kickRef.current > waveThreshold && shockwavesRef.current.length < (isTransitioning ? 8 : 5)) {
-        const waveDeck: "A" | "B" = isTransitioning
-          ? (Math.random() < 0.5 ? "A" : "B") // alternate colors during transition
-          : (cf > 0.5 ? "B" : "A")
-        const col = pickColor(waveDeck, t, 0, centroidRef.current)
-        shockwavesRef.current.push({
-          radius: Math.min(W, H) * 0.04,
-          maxRadius: Math.min(W, H) * (0.45 + transBoost * 0.15),
-          alpha: 0.3 + kickRef.current * 0.15 + transBoost * 0.1,
-          col,
-        })
-      }
-
       // --- Spawn laser beams on snare (more during transitions) ---
       const beamLimit = isTransitioning ? 12 : 8
       if (snareRef.current > 0.4 && laserBeamsRef.current.length < beamLimit) {
@@ -929,13 +837,35 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
       // --- Laser beams ---
       drawLaserBeams(ctx, laserBeamsRef.current, W, H)
 
-      // --- Shockwaves (behind viz, centered on horizon) ---
-      drawShockwaves(ctx, shockwavesRef.current, W, H)
-
       // --- Transition effects (color wash, wipe line, ripples) ---
       if (isTransitioning) {
         drawTransitionEffects(ctx, W, H, t, cf, transProgress, centroid, energy)
       }
+
+      // --- Waveform trail (footprint effect) ---
+      trailCtx.save()
+      trailCtx.setTransform(1, 0, 0, 1, 0, 0)
+      trailCtx.globalCompositeOperation = "destination-out"
+      trailCtx.fillStyle = `rgba(0,0,0,${0.08 + energy * 0.04})`
+      trailCtx.fillRect(0, 0, trailCanvas.width, trailCanvas.height)
+      trailCtx.restore()
+
+      if (blend >= 0.45) {
+        const trailAlpha = blend < 0.7 ? (blend - 0.45) / 0.25 : 1
+        trailCtx.globalAlpha = trailAlpha * 0.4
+        drawWave(trailCtx, timeDomain, frequency, W, H, s, t, cf, energy, bass, centroid)
+        trailCtx.globalAlpha = 1
+      }
+
+      // Composite trail behind current waveform
+      ctx.restore()
+      ctx.save()
+      ctx.globalAlpha = 0.35
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.drawImage(trailCanvas, 0, 0)
+      ctx.restore()
+      ctx.save()
+      ctx.translate(shakeRef.current.x, shakeRef.current.y)
 
       // --- Visualization modes ---
       if (blend < 0.45) {

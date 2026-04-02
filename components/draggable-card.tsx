@@ -93,6 +93,7 @@ export function DraggableCard({
   return (
     <div
       ref={cardRef}
+      data-card-id={id}
       className={cn(
         "absolute top-0 left-0 flex flex-col rounded-[14px] overflow-hidden",
         "backdrop-blur-[14px] border will-change-transform",
