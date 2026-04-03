@@ -659,11 +659,16 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
     const trailCanvas = trailCanvasRef.current
     const trailCtx = trailCanvas.getContext("2d")!
 
+    let cachedW = wrap.clientWidth
+    let cachedH = wrap.clientHeight
+
     const resize = () => {
       const w = wrap.clientWidth
       const h = wrap.clientHeight
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
       if (w < 1 || h < 1) return
+      cachedW = w
+      cachedH = h
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
       trailCanvas.width = Math.round(w * dpr)
@@ -682,8 +687,8 @@ export function ThreeVisualizer({ analyserData, musicObject, transitionState }: 
     const startTime = performance.now()
 
     const draw = () => {
-      const W = wrap.clientWidth
-      const H = wrap.clientHeight
+      const W = cachedW
+      const H = cachedH
       const { frequency, timeDomain } = dataRef.current
       const { visualSensitivity, crossfader } = objRef.current
       const trans = transRef.current

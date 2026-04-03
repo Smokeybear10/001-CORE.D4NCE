@@ -57,8 +57,6 @@ export function useTracks() {
         throw new Error("File too large. Maximum size is 50MB.")
       }
 
-      console.log(`[v0] Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
-
       const formData = new FormData()
       formData.append("file", file)
 
@@ -73,7 +71,6 @@ export function useTracks() {
       }
 
       const { url } = await res.json()
-      console.log(`[v0] Upload complete: ${url}`)
 
       const newTrack: Track = {
         id: crypto.randomUUID(),

@@ -167,12 +167,10 @@ export function VoiceControl({
               }
             }
             
-            console.log(`[VoiceControl] Loading "${track.title}" to deck ${targetDeck}`)
             onLoadTrack(track, targetDeck)
             // Auto-play after loading
             setTimeout(() => onAction("play", { deck: targetDeck }), 500)
           } else {
-            console.warn("[VoiceControl] Track not found:", parsed.trackId || parsed.trackTitle)
           }
           break
         case "play":
@@ -244,7 +242,6 @@ export function VoiceControl({
             
             // Skip [DONE] marker
             if (line.trim() === "[DONE]" || line.trim() === "data: [DONE]") {
-              console.log("[VoiceControl] Stream done marker received")
               continue
             }
             
@@ -333,7 +330,6 @@ export function VoiceControl({
             )
             
             if (trackMatch) {
-              console.log(`[VoiceControl] Fallback: Loading "${trackMatch.title}"`)
               fallbackAction = { 
                 action: "loadTrack", 
                 trackId: trackMatch.id,
@@ -347,7 +343,6 @@ export function VoiceControl({
                 words.some(word => word.length > 2 && t.title.toLowerCase().includes(word))
               )
               if (fuzzyMatch) {
-                console.log(`[VoiceControl] Fallback fuzzy: Loading "${fuzzyMatch.title}"`)
                 fallbackAction = { 
                   action: "loadTrack", 
                   trackId: fuzzyMatch.id,
@@ -464,7 +459,12 @@ export function VoiceControl({
 
   useEffect(() => {
     startAudioAnalysis()
-    return () => stopAudioAnalysis()
+    const onVisibility = () => document.hidden ? stopAudioAnalysis() : startAudioAnalysis()
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      stopAudioAnalysis()
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
   }, [startAudioAnalysis, stopAudioAnalysis])
 
   useEffect(() => {

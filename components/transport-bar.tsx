@@ -106,7 +106,7 @@ function InlineWaveform({
       {/* Empty state */}
       {!track && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <span className="text-[10px] font-mono text-violet-300/25 tracking-wide">Load a track</span>
+          <span className="text-[10px] font-mono text-violet-300/40 tracking-wide">Load a track</span>
         </div>
       )}
 
@@ -171,6 +171,7 @@ function InlineWaveform({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay() }}
+          aria-label={isPlaying ? `Pause deck ${deck}` : `Play deck ${deck}`}
           className={cn(
             "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm transition-all",
             isA ? "text-amber-400/80 hover:text-amber-400" : "text-cyan-400/80 hover:text-cyan-400",
@@ -201,7 +202,7 @@ export function TransportBar({
 
   return (
     <div className="absolute top-[44px] inset-x-0 z-25" data-tour-id="transport">
-      <div className="bg-[#110328]/90 backdrop-blur-md border-b border-violet-500/[0.08] shadow-[0_4px_30px_rgba(21,5,53,0.6)]">
+      <div>
         {/* Waveform strips */}
         <div className="flex gap-1.5 px-3 py-2 sm:px-4">
           <InlineWaveform

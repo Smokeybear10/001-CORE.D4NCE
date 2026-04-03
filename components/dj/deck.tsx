@@ -164,8 +164,8 @@ function AudioWaveform({
 
       {/* Time overlay */}
       <div className="absolute bottom-0.5 left-1.5 right-1.5 flex justify-between pointer-events-none">
-        <span className="text-[9px] font-mono text-white/25 tabular-nums">{formatTime(duration > 0 ? (progress / 100) * duration : 0)}</span>
-        <span className="text-[9px] font-mono text-white/25 tabular-nums">{formatRemaining((progress / 100) * duration, duration)}</span>
+        <span className="text-[9px] font-mono text-white/35 tabular-nums">{formatTime(duration > 0 ? (progress / 100) * duration : 0)}</span>
+        <span className="text-[9px] font-mono text-white/35 tabular-nums">{formatRemaining((progress / 100) * duration, duration)}</span>
       </div>
     </div>
   )
@@ -241,7 +241,7 @@ export function Deck({
               </span>
             )}
             {detectedKey && !camelotKey && (
-              <span className="text-[10px] text-white/25">{detectedKey}</span>
+              <span className="text-[10px] text-white/35">{detectedKey}</span>
             )}
           </div>
         </div>
@@ -254,8 +254,8 @@ export function Deck({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-3 gap-1.5">
-            <Music className="h-5 w-5 text-white/20" />
-            <p className="text-[11px] text-white/20">No track loaded</p>
+            <Music className="h-5 w-5 text-white/35" />
+            <p className="text-[11px] text-white/35">No track loaded</p>
           </div>
         )}
 
@@ -275,6 +275,7 @@ export function Deck({
           <button
             onClick={() => onSeek(0)}
             disabled={!track}
+            aria-label="Reset position"
             title="Reset"
             className={cn(
               "w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-20 border",
@@ -288,6 +289,7 @@ export function Deck({
           <button
             onClick={isPlaying ? onPause : onPlay}
             disabled={!track}
+            aria-label={isPlaying ? "Pause" : "Play"}
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-20 shrink-0 border",
               isA
@@ -308,6 +310,7 @@ export function Deck({
           {onAddCue && track && (
             <button
               onClick={() => onAddCue(currentTime)}
+              aria-label="Set cue point"
               title="Set cue point"
               className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center transition-all border",
@@ -324,6 +327,7 @@ export function Deck({
           {onVinylBrake && track && isPlaying && (
             <button
               onClick={onVinylBrake}
+              aria-label="Vinyl brake"
               title="Vinyl brake"
               className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center transition-all border",
@@ -356,7 +360,7 @@ export function Deck({
         {/* Beat loop buttons */}
         {track && onSetBeatLoop && (
           <div className="flex items-center gap-1.5">
-            <Repeat className={cn("h-3 w-3 shrink-0", loop?.active ? accentColor : "text-white/20")} />
+            <Repeat className={cn("h-3 w-3 shrink-0", loop?.active ? accentColor : "text-white/35")} />
             {[1, 2, 4, 8, 16].map(beats => (
               <button
                 key={beats}
@@ -387,9 +391,9 @@ export function Deck({
         {/* Tempo */}
         {track && (
           <div className="flex items-center gap-2.5">
-            <span className="text-[9px] text-white/20 uppercase tracking-[0.15em] shrink-0 w-10">Tempo</span>
+            <span className="text-[9px] text-white/35 uppercase tracking-[0.15em] shrink-0 w-10">Tempo</span>
             <Slider value={[playbackRate * 100]} onValueChange={([v]) => onTempoChange(v / 100)} min={50} max={150} step={0.5} className="flex-1" />
-            <span className={cn("text-[9px] font-mono tabular-nums w-10 text-right shrink-0", playbackRate !== 1 ? accentColor : "text-white/20")}>
+            <span className={cn("text-[9px] font-mono tabular-nums w-10 text-right shrink-0", playbackRate !== 1 ? accentColor : "text-white/35")}>
               {playbackRate > 1 ? "+" : ""}{((playbackRate - 1) * 100).toFixed(1)}%
             </span>
           </div>
