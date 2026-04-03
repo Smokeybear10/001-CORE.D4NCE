@@ -101,7 +101,6 @@ export function GrokCopilot({
     addCoachMessage(`Planning transition from "${trackA.title}" to "${trackB.title}"...`, "action")
 
     try {
-      // Determine which deck is outgoing based on playback state
       const outgoingDeck = isPlayingB && !isPlayingA ? "B"
         : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
         : "A"
@@ -134,7 +133,7 @@ export function GrokCopilot({
       if (plan.explanation) {
         addCoachMessage(plan.explanation, "info")
       }
-    } catch (error) {
+    } catch {
       addCoachMessage("Failed to generate transition plan. Please try again.", "tip")
     } finally {
       setIsGeneratingTransition(false)

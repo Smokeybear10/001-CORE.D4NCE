@@ -127,7 +127,6 @@ export function GrokChatPanel({
                   
                   if (currentTrackA && currentTrackB) {
                     try {
-                      console.log("[GrokChat] Requesting transition after loading track")
                       const outDeck: "A" | "B" = isPlayingB && !isPlayingA ? "B"
                         : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
                         : "A"
@@ -141,10 +140,7 @@ export function GrokChatPanel({
                           trackB: currentTrackB,
                           currentMusicObject: musicObject,
                           userPrompt: parsed.transitionType || "smooth transition",
-                          currentTimeA,
-                          durationA,
-                          currentTimeB,
-                          durationB,
+                          currentTimeA, durationA, currentTimeB, durationB,
                           outgoingDeck: outDeck,
                           audioContext: getAudioContext?.(),
                           outgoingStructure: outStructure ?? undefined,
@@ -152,10 +148,8 @@ export function GrokChatPanel({
                           model: selectedModel,
                         }),
                       })
-
                       if (response.ok) {
                         const { plan } = await response.json()
-                        console.log("[GrokChat] Received transition plan:", plan)
                         onApplyTransition(plan)
                       }
                     } catch (error) {
@@ -170,38 +164,29 @@ export function GrokChatPanel({
               // Normal transition between currently loaded tracks
               if (trackA && trackB) {
                 try {
-                  console.log("[GrokChat] Requesting transition between loaded tracks")
                   const outDeck2: "A" | "B" = isPlayingB && !isPlayingA ? "B"
                     : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
                     : "A"
-                  const outStr = outDeck2 === "A" ? structureA : structureB
-                  const inStr = outDeck2 === "A" ? structureB : structureA
+                  const outStructure2 = outDeck2 === "A" ? structureA : structureB
+                  const inStructure2 = outDeck2 === "A" ? structureB : structureA
                   const response = await fetch("/api/grok/transition", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      trackA,
-                      trackB,
+                      trackA, trackB,
                       currentMusicObject: musicObject,
                       userPrompt: parsed.transitionType || "smooth transition",
-                      currentTimeA,
-                      durationA,
-                      currentTimeB,
-                      durationB,
+                      currentTimeA, durationA, currentTimeB, durationB,
                       outgoingDeck: outDeck2,
                       audioContext: getAudioContext?.(),
-                      outgoingStructure: outStr ?? undefined,
-                      incomingStructure: inStr ?? undefined,
+                      outgoingStructure: outStructure2 ?? undefined,
+                      incomingStructure: inStructure2 ?? undefined,
                       model: selectedModel,
                     }),
                   })
-
                   if (response.ok) {
                     const { plan } = await response.json()
-                    console.log("[GrokChat] Received transition plan:", plan)
                     onApplyTransition(plan)
-                  } else {
-                    console.error("[GrokChat] Failed to get transition plan")
                   }
                 } catch (error) {
                   console.error("[GrokChat] Error requesting transition:", error)

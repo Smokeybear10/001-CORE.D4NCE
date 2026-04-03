@@ -121,7 +121,7 @@ const transitionPlanSchema = z.object({
     .describe("One-shot effects fired at specific transition points. Use vinylBrake only for quick_cut/energy_drop on outgoing deck"),
   incomingStartSeconds: z
     .number()
-    .describe("REQUIRED. Seconds into the incoming track to start playback (0 or more). Use the incoming song structure analysis to skip past intros. Set to 0 only if the intro is short (<16 bars) or you want the intro to blend under the outgoing track."),
+    .describe("REQUIRED — DO NOT DEFAULT TO 0. Seconds into the incoming track to start playback. Use the INCOMING song structure to find the ideal cue point. Most pop songs have 10-15s intros — skip past them to the verse or first beat drop. Only use 0 if: (1) the intro has a strong beat/hook that blends well under the outgoing track, or (2) the intro is very short (<8 bars). For tracks with long intros, set this to 15-60s to skip to where the energy starts."),
   visualizerMode: z.enum(["cymatic", "tunnel", "waveform", "spectrum"]).optional(),
   phaseAlignment: z
     .enum(["phrase_start", "drop", "breakdown", "buildup", "outro"])
@@ -480,9 +480,13 @@ HARD RULES (violations = amateur hour):
 8. fxAutomation: 4-6 points. Create an FX arc — ramp up during blend, back to 0 at end.
 9. Reverb should peak at 0.2-0.5 during the blend midpoint. Delay at 0.1-0.4.
 10. Tempo automation if BPMs differ by >3.
-11. incomingStartSeconds: ALWAYS SET THIS. Use the incoming song structure to skip past the intro.
-    If structure says bestEntryPoint=25s, set incomingStartSeconds=25 (minus startDelay if applicable).
-    NEVER leave it at 0 if the incoming track has a long intro — the listener will hear dead air.
+11. incomingStartSeconds: THIS IS CRITICAL. DO NOT DEFAULT TO 0.
+    Use the incoming song structure to find where the energy/beat starts.
+    If the INCOMING ENTRY analysis recommends a time, USE THAT EXACT VALUE.
+    Most pop/dance tracks have 10-15s intros with sparse beats or no drums.
+    Skip past them — cue to the verse or first rhythmic section.
+    Only set to 0 if the intro has a strong beat that blends well.
+    Setting this to 0 when the intro is weak = dead air during the transition.
 
 STEM ISOLATION STRATEGY:
 - Start incoming deck with all stems at 0 or very low

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
 import { findBestEntryPoint, findNextExitPoint } from "@/lib/song-structure"
+import { getTrackMeta, getNextBlendZone } from "@/lib/track-metadata"
 import { useMusicEngine } from "@/hooks/use-music-engine"
 import { useTracks } from "@/hooks/use-tracks"
 import { ThreeVisualizer } from "@/components/visualizer/three-visualizer"
@@ -39,157 +40,97 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    // DPR 1 — this is ambient glow, doesn't need retina
     let w = 0, h = 0
-    // Cache all gradients on resize — never allocate in draw loop
+    let glowGrad: CanvasGradient | null = null
     let lineGrad: CanvasGradient | null = null
-    let glowGrad1: CanvasGradient | null = null
-    let glowGrad2: CanvasGradient | null = null
-    let baseRadius = 0
 
     const resize = () => {
       w = window.innerWidth
       h = window.innerHeight
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.scale(dpr, dpr)
-      const cx = w * 0.5
-      const cy = h * 0.45
-      baseRadius = Math.min(w, h) * 0.18
+      canvas.width = w
+      canvas.height = h
+      const cx = w * 0.5, cy = h * 0.45
+      glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.5)
+      glowGrad.addColorStop(0, "rgba(139,92,246,0.08)")
+      glowGrad.addColorStop(0.4, "rgba(246,46,151,0.03)")
+      glowGrad.addColorStop(1, "transparent")
       lineGrad = ctx.createLinearGradient(0, 0, w, 0)
       lineGrad.addColorStop(0, "rgba(246,46,151,0.2)")
       lineGrad.addColorStop(0.5, "rgba(139,92,246,0.35)")
       lineGrad.addColorStop(1, "rgba(246,46,151,0.2)")
-      glowGrad1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.5)
-      glowGrad1.addColorStop(0, "rgba(139,92,246,0.08)")
-      glowGrad1.addColorStop(0.4, "rgba(246,46,151,0.03)")
-      glowGrad1.addColorStop(1, "transparent")
-      glowGrad2 = ctx.createRadialGradient(cx, cy - 20, 0, cx, cy, w * 0.35)
-      glowGrad2.addColorStop(0, "rgba(249,171,83,0.04)")
-      glowGrad2.addColorStop(1, "transparent")
     }
     resize()
     window.addEventListener("resize", resize)
 
-    const MAX_P = 50
+    // Particle pool — 20 max, single color
+    const MAX_P = 20
     const px = new Float32Array(MAX_P)
     const py = new Float32Array(MAX_P)
     const pvx = new Float32Array(MAX_P)
     const pvy = new Float32Array(MAX_P)
     const plife = new Float32Array(MAX_P)
     const pmaxLife = new Float32Array(MAX_P)
-    const phue = new Float32Array(MAX_P)
-    const psize = new Float32Array(MAX_P)
     let pCount = 0
 
     let raf = 0
     const draw = (time: number) => {
       const t = time * 0.001
-      const cx = w * 0.5
-      const cy = h * 0.45
+      const cx = w * 0.5, cy = h * 0.45
 
       ctx.clearRect(0, 0, w, h)
 
-      // Layered background glows — cached gradients, only alpha varies
-      if (glowGrad1) {
-        ctx.globalAlpha = 0.6 + Math.sin(t * 0.5) * 0.15
-        ctx.fillStyle = glowGrad1
+      // Single background glow
+      if (glowGrad) {
+        ctx.globalAlpha = 0.55 + Math.sin(t * 0.5) * 0.15
+        ctx.fillStyle = glowGrad
         ctx.fillRect(0, 0, w, h)
-      }
-      if (glowGrad2) {
-        ctx.globalAlpha = 0.3 + Math.sin(t * 0.7 + 1) * 0.1
-        ctx.fillStyle = glowGrad2
-        ctx.fillRect(0, 0, w, h)
-      }
-      ctx.globalAlpha = 1
-
-      // Circular waveform ring
-      const segments = 120
-      ctx.lineWidth = 1.5
-      for (let ring = 0; ring < 2; ring++) {
-        ctx.beginPath()
-        const ringOff = ring * 0.5
-        const ringAlpha = ring === 0 ? 0.18 : 0.07
-        for (let i = 0; i <= segments; i++) {
-          const angle = (i / segments) * Math.PI * 2 - Math.PI * 0.5
-          const freq = Math.sin(t * 1.3 + i * 0.12 + ringOff) * 0.4
-            + Math.sin(t * 0.8 + i * 0.06 + ringOff) * 0.3
-            + Math.sin(t * 2.2 + i * 0.25) * 0.15
-          const r = baseRadius + freq * baseRadius * 0.35 + ring * 8
-          const x = cx + Math.cos(angle) * r
-          const y = cy + Math.sin(angle) * r
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-        }
-        ctx.closePath()
-        ctx.strokeStyle = `rgba(139,92,246,${ringAlpha})`
-        ctx.stroke()
+        ctx.globalAlpha = 1
       }
 
-      // Horizontal waveform bars
-      const barCount = 64
+      // Waveform bars — 24 bars, single fillStyle
+      const barCount = 24
       const barW = w / barCount
+      ctx.fillStyle = "rgba(160,100,240,0.06)"
       for (let i = 0; i < barCount; i++) {
-        const freq = Math.sin(t * 1.2 + i * 0.12) * 0.5
-          + Math.sin(t * 0.7 + i * 0.08) * 0.3
-          + Math.sin(t * 2.1 + i * 0.25) * 0.2
+        const freq = Math.sin(t * 1.2 + i * 0.28) * 0.5 + Math.sin(t * 0.7 + i * 0.15) * 0.3
         if (freq <= 0) continue
         const amplitude = freq * h * 0.08
-        const dist = Math.abs(i - barCount / 2) / (barCount / 2)
-        ctx.globalAlpha = (0.04 + freq * 0.04) * (1 - dist * 0.6)
-        ctx.fillStyle = `hsl(${270 + (i / barCount) * 50},70%,65%)`
         ctx.fillRect(i * barW, cy - amplitude, barW - 1, amplitude * 2)
       }
-      ctx.globalAlpha = 1
 
-      // Center waveform line
+      // Waveform line — step 8px
       if (lineGrad) {
         ctx.beginPath()
         ctx.lineWidth = 1.5
         ctx.strokeStyle = lineGrad
-        for (let i = 0; i <= w; i += 3) {
+        for (let i = 0; i <= w; i += 8) {
           const p = i / w
-          const distC = Math.abs(p - 0.5) * 2
-          const envelope = 1 - distC * distC
-          const y = cy + (Math.sin(t * 1.5 + p * 14) * h * 0.03
-            + Math.sin(t * 0.9 + p * 7) * h * 0.02) * envelope
+          const env = 1 - (Math.abs(p - 0.5) * 2) ** 2
+          const y = cy + (Math.sin(t * 1.5 + p * 14) * h * 0.03 + Math.sin(t * 0.9 + p * 7) * h * 0.02) * env
           i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y)
         }
         ctx.stroke()
       }
 
-      // Particles — spawn from ring area
-      if (pCount < MAX_P && Math.random() < 0.2) {
+      // Particles — 20 max, single color, spawn from center area
+      if (pCount < MAX_P && Math.random() < 0.1) {
         const i = pCount++
-        const angle = Math.random() * Math.PI * 2
-        const dist = baseRadius * (0.8 + Math.random() * 1.2)
-        px[i] = cx + Math.cos(angle) * dist
-        py[i] = cy + Math.sin(angle) * dist
-        pvx[i] = (Math.random() - 0.5) * 0.4
-        pvy[i] = -(0.2 + Math.random() * 0.5)
+        px[i] = cx + (Math.random() - 0.5) * w * 0.4
+        py[i] = cy + (Math.random() - 0.5) * h * 0.3
+        pvx[i] = (Math.random() - 0.5) * 0.3
+        pvy[i] = -(0.2 + Math.random() * 0.4)
         plife[i] = 0
-        pmaxLife[i] = 100 + Math.random() * 200
-        phue[i] = 260 + Math.random() * 80
-        psize[i] = 1 + Math.random() * 2
+        pmaxLife[i] = 120 + Math.random() * 180
       }
-
+      ctx.fillStyle = "rgba(180,140,255,1)"
       let writeIdx = 0
       for (let i = 0; i < pCount; i++) {
-        px[i] += pvx[i]
-        py[i] += pvy[i]
-        plife[i]++
+        px[i] += pvx[i]; py[i] += pvy[i]; plife[i]++
         if (plife[i] > pmaxLife[i]) continue
-        if (writeIdx !== i) {
-          px[writeIdx] = px[i]; py[writeIdx] = py[i]
-          pvx[writeIdx] = pvx[i]; pvy[writeIdx] = pvy[i]
-          plife[writeIdx] = plife[i]; pmaxLife[writeIdx] = pmaxLife[i]
-          phue[writeIdx] = phue[i]; psize[writeIdx] = psize[i]
-        }
-        const fade = 1 - plife[writeIdx] / pmaxLife[writeIdx]
-        ctx.globalAlpha = fade * 0.2
-        ctx.fillStyle = `hsl(${phue[writeIdx]},60%,70%)`
-        const s = psize[writeIdx]
-        ctx.fillRect(px[writeIdx] - s * 0.5, py[writeIdx] - s * 0.5, s, s)
+        if (writeIdx !== i) { px[writeIdx] = px[i]; py[writeIdx] = py[i]; pvx[writeIdx] = pvx[i]; pvy[writeIdx] = pvy[i]; plife[writeIdx] = plife[i]; pmaxLife[writeIdx] = pmaxLife[i] }
+        ctx.globalAlpha = (1 - plife[writeIdx] / pmaxLife[writeIdx]) * 0.15
+        ctx.fillRect(px[writeIdx] - 1, py[writeIdx] - 1, 2, 2)
         writeIdx++
       }
       pCount = writeIdx
@@ -199,10 +140,7 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
     }
     raf = requestAnimationFrame(draw)
 
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener("resize", resize)
-    }
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize) }
   }, [])
 
   const [exiting, setExiting] = useState(false)
@@ -235,12 +173,6 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
-        {/* Orbital rings behind title */}
-        <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[55%] pointer-events-none transition-all duration-[2s] ${phase >= 2 ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}>
-          <div className="w-[280px] h-[280px] sm:w-[380px] sm:h-[380px] rounded-full border border-violet-500/[0.06]" style={{ animation: "spin 25s linear infinite" }} />
-          <div className="absolute inset-4 rounded-full border border-fuchsia-400/[0.04]" style={{ animation: "spin 18s linear infinite reverse" }} />
-        </div>
-
         {/* Title */}
         <h1
           className={`font-mono text-7xl sm:text-9xl font-bold uppercase tracking-[0.3em] text-transparent bg-clip-text transition-all duration-1000 ${phase >= 2 ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"}`}
@@ -248,7 +180,7 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
             backgroundImage: "linear-gradient(135deg, #e879f9, #a78bfa, #e879f9, #f9ab53)",
             backgroundSize: "300% 100%",
             animation: phase >= 2 ? "gradientShift 6s ease infinite" : "none",
-            filter: "drop-shadow(0 0 60px rgba(139,92,246,0.25))",
+            textShadow: "0 0 60px rgba(139,92,246,0.25)",
           }}
         >
           D4NCE
@@ -266,12 +198,8 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
         <button
           onClick={handleEnter}
           className={`group relative mt-12 px-12 py-4 rounded-full transition-all duration-700 ${phase >= 4 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-          style={phase >= 4 ? { animation: "pulseGlow 3s ease-in-out infinite" } : undefined}
         >
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-fuchsia-500/10 via-violet-500/15 to-fuchsia-500/10 border border-violet-400/15 group-hover:border-violet-400/40 group-hover:shadow-[0_0_50px_rgba(139,92,246,0.25),0_0_100px_rgba(139,92,246,0.1)] transition-all duration-500" />
-          <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-            background: "radial-gradient(ellipse at center, rgba(139,92,246,0.1) 0%, transparent 70%)",
-          }} />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-fuchsia-500/10 via-violet-500/15 to-fuchsia-500/10 border border-violet-400/15 group-hover:border-violet-400/40 transition-all duration-500" />
           <span className="relative text-[11px] font-mono uppercase tracking-[0.35em] text-violet-200/60 group-hover:text-violet-100/90 transition-colors duration-300">
             Enter
           </span>
@@ -444,13 +372,22 @@ export default function DJSystem() {
       }
 
       const incomingPlaying = incomingDeck === "A" ? isPlayingA : isPlayingB
+      const incomingTrack = incomingDeck === "A" ? trackA : trackB
       const incomingStructure = incomingDeck === "A" ? structureA : structureB
       const transDuration = plan.durationSeconds ?? 16
+
+      // AI plan's incomingStartSeconds is the primary cue — it has full song structure context.
+      // Fall back to metadata or structure analysis only when the plan says 0.
+      const inMeta = incomingTrack ? getTrackMeta(incomingTrack) : null
       const structureEntry = incomingStructure ? findBestEntryPoint(incomingStructure, transDuration).time : 0
-      // Structure analysis is authoritative — only fall back to AI's value when no structure
-      const cuePoint = structureEntry > 0
-        ? structureEntry
-        : (plan.incomingStartSeconds ?? 0)
+      const planCue = plan.incomingStartSeconds ?? 0
+      const cuePoint = planCue > 0
+        ? planCue
+        : inMeta && inMeta.mixIn > 0
+          ? inMeta.mixIn
+          : structureEntry > 0
+            ? structureEntry
+            : 0
 
       // Pre-set crossfader to safe position (incoming silent) before delay
       let actualCrossfader = musicObject.crossfader
@@ -461,19 +398,29 @@ export default function DJSystem() {
         actualCrossfader = safeStart
       }
 
-      // Use song structure for exit timing (authoritative), fall back to AI's suggestion
+      // Exit timing: AI plan's startDelay is primary — it has full song structure context.
+      // Fall back to structure analysis or blend zone only when plan gives 0.
+      const outgoingTrack = outgoingDeck === "A" ? trackA : trackB
       const outgoingStructure = outgoingDeck === "A" ? structureA : structureB
       const outgoingTime = outgoingDeck === "A" ? currentTimeA : currentTimeB
       const outgoingDuration = outgoingDeck === "A" ? durationA : durationB
+      const planDelay = (plan.startDelay || 0) * 1000
       let effectiveDelay: number
-      if (outgoingStructure && outgoingTime !== undefined) {
+      if (planDelay > 0) {
+        effectiveDelay = planDelay
+      } else if (outgoingStructure && outgoingTime !== undefined) {
         const exit = findNextExitPoint(outgoingStructure, outgoingTime, outgoingDuration)
         effectiveDelay = exit.delay * 1000
       } else {
-        effectiveDelay = (plan.startDelay || 0) * 1000
+        const blendZone = outgoingTrack ? getNextBlendZone(outgoingTrack, outgoingTime ?? 0) : null
+        if (blendZone && outgoingTime !== undefined) {
+          effectiveDelay = (blendZone.start - outgoingTime) * 1000
+        } else {
+          effectiveDelay = 0
+        }
       }
       // Cap delay to prevent long dead waits
-      effectiveDelay = Math.min(effectiveDelay, 15000)
+      effectiveDelay = Math.min(effectiveDelay, 30000)
 
       setTimeout(() => {
         // Seek and play incoming when the blend begins
