@@ -66,7 +66,7 @@ export function Mixer({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-white/20 uppercase tracking-widest">Mixer</span>
+          <span className="text-[9px] text-white/35 uppercase tracking-widest">Mixer</span>
           {keyCompatibility !== null && keyCompatibility !== undefined && (
             <CompatibilityBadge score={keyCompatibility} />
           )}
@@ -83,7 +83,7 @@ export function Mixer({
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <span className="px-2 py-0.5 rounded bg-amber-500/10 text-[10px] font-bold text-amber-400">A</span>
-          <span className="text-[9px] text-white/20 uppercase tracking-widest">XFADE</span>
+          <span className="text-[9px] text-white/35 uppercase tracking-widest">XFADE</span>
           <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-400">B</span>
         </div>
         <Slider value={[crossfader * 100]} onValueChange={([v]) => onCrossfadeChange(v / 100)} max={100} step={1} />
@@ -201,7 +201,7 @@ export function Mixer({
               </div>
             ))
           ) : (
-            <p className="text-[11px] text-white/20 text-center py-3">Not available</p>
+            <p className="text-[11px] text-white/35 text-center py-3">Not available</p>
           )}
         </TabsContent>
 
@@ -241,7 +241,7 @@ export function Mixer({
               </div>
             ))
           ) : (
-            <p className="text-[11px] text-white/20 text-center py-3">Not available</p>
+            <p className="text-[11px] text-white/35 text-center py-3">Not available</p>
           )}
         </TabsContent>
       </Tabs>

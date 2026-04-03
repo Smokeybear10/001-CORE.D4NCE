@@ -124,7 +124,7 @@ export function DraggableCard({
         onPointerDown={onPointerDown}
       >
         <div className="flex items-center gap-1.5">
-          <GripHorizontal className="h-2.5 w-2.5 text-white/20" />
+          <GripHorizontal className="h-2.5 w-2.5 text-white/30" />
           {icon}
           <span className={cn("text-[9px] font-mono uppercase tracking-[0.15em]", accentTitle)}>
             {title}
@@ -133,7 +133,8 @@ export function DraggableCard({
         <button
           type="button"
           onClick={handleToggle}
-          className="flex h-6 w-6 items-center justify-center rounded text-white/25 hover:text-white/50 transition-colors"
+          aria-label={expanded ? "Minimize panel" : "Expand panel"}
+          className="flex h-8 w-8 items-center justify-center rounded text-white/35 hover:text-white/55 transition-colors"
         >
           {expanded ? <Minus className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
         </button>

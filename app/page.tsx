@@ -21,10 +21,13 @@ const DjHelpModal = dynamic(() => import("@/components/dj/dj-help-modal").then(m
 
 function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [phase, setPhase] = useState(skipIntro ? 4 : 0)
+  const [phase, setPhase] = useState(0)
 
   useEffect(() => {
-    if (skipIntro) return
+    if (skipIntro) {
+      setPhase(4)
+      return
+    }
     const timers = [
       setTimeout(() => setPhase(1), 100),
       setTimeout(() => setPhase(2), 500),
@@ -175,7 +178,7 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
       <div className="relative z-10 flex flex-col items-center">
         {/* Title */}
         <h1
-          className={`font-mono text-7xl sm:text-9xl font-bold uppercase tracking-[0.3em] text-transparent bg-clip-text transition-all duration-1000 ${phase >= 2 ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"}`}
+          className={`font-mono text-5xl sm:text-7xl md:text-9xl font-bold uppercase tracking-[0.15em] sm:tracking-[0.3em] text-transparent bg-clip-text transition-all duration-1000 ${phase >= 2 ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"}`}
           style={{
             backgroundImage: "linear-gradient(135deg, #e879f9, #a78bfa, #e879f9, #f9ab53)",
             backgroundSize: "300% 100%",
@@ -187,35 +190,35 @@ function LandingPage({ onEnter, skipIntro }: { onEnter: () => void; skipIntro?: 
         </h1>
 
         {/* Divider */}
-        <div className={`h-px bg-gradient-to-r from-transparent via-violet-400/30 to-transparent mt-5 mb-4 transition-all duration-700 ${phase >= 3 ? "opacity-100 w-32" : "opacity-0 w-0"}`} />
+        <div className={`h-px bg-gradient-to-r from-transparent via-violet-400/30 to-transparent mt-3 mb-2.5 transition-all duration-700 ${phase >= 3 ? "opacity-100 w-32" : "opacity-0 w-0"}`} />
 
         {/* Subtitle */}
-        <p className={`text-[11px] sm:text-[13px] font-medium tracking-[0.3em] text-violet-300/30 uppercase transition-all duration-700 ${phase >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
+        <p className={`text-[11px] sm:text-[13px] font-medium tracking-[0.3em] text-violet-300/60 uppercase transition-all duration-700 ${phase >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
           AI-Powered DJ System
         </p>
 
         {/* Enter button */}
         <button
           onClick={handleEnter}
-          className={`group relative mt-12 px-12 py-4 rounded-full transition-all duration-700 ${phase >= 4 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+          className={`group relative mt-8 px-12 py-4 rounded-full transition-all duration-700 ${phase >= 4 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
         >
           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-fuchsia-500/10 via-violet-500/15 to-fuchsia-500/10 border border-violet-400/15 group-hover:border-violet-400/40 transition-all duration-500" />
-          <span className="relative text-[11px] font-mono uppercase tracking-[0.35em] text-violet-200/60 group-hover:text-violet-100/90 transition-colors duration-300">
+          <span className="relative text-[11px] font-mono uppercase tracking-[0.35em] text-violet-200/80 group-hover:text-violet-100 transition-colors duration-300">
             Enter
           </span>
         </button>
 
         {/* Links */}
-        <div className={`flex flex-col items-center gap-3 mt-10 transition-all duration-700 ${phase >= 4 ? "opacity-100" : "opacity-0"}`}>
+        <div className={`flex flex-col items-center gap-2 mt-6 transition-all duration-700 ${phase >= 4 ? "opacity-100" : "opacity-0"}`}>
           <a
             href="https://thomasou.com/index.html#projects"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[9px] font-mono text-violet-300/15 hover:text-violet-300/40 transition-colors tracking-widest uppercase"
+            className="text-[10px] font-mono text-violet-300/40 hover:text-violet-300/70 transition-colors tracking-widest uppercase"
           >
             More Projects
           </a>
-          <p className="text-[9px] text-violet-300/[0.08]">Built by Thomas Ou</p>
+          <p className="text-[10px] text-violet-300/25">Built by Thomas Ou</p>
         </div>
       </div>
     </div>
@@ -273,6 +276,8 @@ export default function DJSystem() {
   const [showHelp, setShowHelp] = useState(false)
   const [showLanding, setShowLanding] = useState(true)
   const [hasVisited, setHasVisited] = useState(false)
+  const [mainFadingIn, setMainFadingIn] = useState(false)
+  const [mainFadingOut, setMainFadingOut] = useState(false)
 
   const handleTourOpenCard = useCallback((cardId: string) => {
     if (cardId === "library") setLibraryExpanded(true)
@@ -580,18 +585,28 @@ export default function DJSystem() {
   }, [])
 
   const handleEnter = useCallback(() => {
+    setMainFadingIn(true)
     setShowLanding(false)
     setHasVisited(true)
     if (!isInitialized) initialize()
+    setTimeout(() => setMainFadingIn(false), 600)
   }, [isInitialized, initialize])
 
+  const handleLogoClick = useCallback(() => {
+    setMainFadingOut(true)
+    setTimeout(() => {
+      setMainFadingOut(false)
+      setShowLanding(true)
+    }, 500)
+  }, [])
+
   if (showLanding) {
-    return <LandingPage onEnter={handleEnter} skipIntro={hasVisited} />
+    return <LandingPage onEnter={handleEnter} />
   }
 
   return (
     <ErrorBoundary>
-      <div className="relative h-dvh w-screen max-w-[100vw] overflow-hidden bg-[#0d0221]">
+      <div id="main-content" role="main" className={`relative h-dvh w-screen max-w-[100vw] overflow-hidden bg-[#0d0221] transition-opacity duration-500 ${mainFadingIn ? "animate-[fadeIn_600ms_ease-out]" : ""} ${mainFadingOut ? "opacity-0" : "opacity-100"}`}>
         {/* Fullscreen visualizer background */}
         <div className="absolute inset-0 z-0" data-tour-id="visualizer">
           <ThreeVisualizer analyserData={analyserData} musicObject={musicObject} transitionState={transitionState} />
@@ -610,7 +625,7 @@ export default function DJSystem() {
           mixerOpen={mixerExpanded}
           onToggleMixer={() => setMixerExpanded(!mixerExpanded)}
           onShowHelp={() => setShowHelp(true)}
-          onLogoClick={() => setShowLanding(true)}
+          onLogoClick={handleLogoClick}
         />
 
         {/* Waveform strip — always visible at top */}

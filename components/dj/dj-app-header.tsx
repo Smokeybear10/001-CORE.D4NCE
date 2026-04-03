@@ -33,9 +33,9 @@ export function DjAppHeader({
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 xl:col-start-1 xl:flex-initial">
         <Disc3 className="h-5 w-5 shrink-0 text-fuchsia-400/80 sm:h-6 sm:w-6" />
         <div className="flex min-w-0 flex-col items-start gap-0 leading-none">
-          <h1 className="m-0 font-mono text-xs font-bold uppercase tracking-[0.14em] text-fuchsia-400/90 sm:text-sm sm:tracking-[0.18em]">
+          <span className="m-0 font-mono text-xs font-bold uppercase tracking-[0.14em] text-fuchsia-400/90 sm:text-sm sm:tracking-[0.18em]">
             D4NCE
-          </h1>
+          </span>
           <span className="mt-0.5 font-sans text-[9px] font-medium tracking-[0.05em] text-white/40 min-[380px]:text-[10.5px]">
             by Thomas Ou
           </span>

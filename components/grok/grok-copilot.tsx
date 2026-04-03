@@ -244,7 +244,7 @@ export function GrokCopilot({
               <TransitionStatus transitionState={transitionState} onCancel={onCancelTransition} />
             )}
 
-            <div className="text-xs text-violet-200/35">Plan an AI-powered transition between your loaded tracks.</div>
+            <div className="text-xs text-violet-200/45">Plan an AI-powered transition between your loaded tracks.</div>
 
             <div className="flex items-center gap-2 text-xs">
               <div
@@ -255,7 +255,7 @@ export function GrokCopilot({
               >
                 {trackA?.title || "Deck A"}
               </div>
-              <ArrowRight className="h-3 w-3 text-violet-200/30" />
+              <ArrowRight className="h-3 w-3 text-violet-200/40" />
               <div
                 className={cn(
                   "px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 truncate max-w-[100px]",
@@ -290,7 +290,7 @@ export function GrokCopilot({
               <div className="p-3 rounded-lg bg-violet-500/[0.06] border border-violet-500/15">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-violet-200">Transition Plan</p>
-                  <span className="text-xs text-violet-200/35">{lastTransitionPlan.durationSeconds}s</span>
+                  <span className="text-xs text-violet-200/45">{lastTransitionPlan.durationSeconds}s</span>
                 </div>
                 {lastTransitionPlan.explanation && (
                   <p className="text-xs text-violet-100/65 mb-3">{lastTransitionPlan.explanation}</p>
@@ -312,7 +312,7 @@ export function GrokCopilot({
 
         <TabsContent value="presets" className="flex-1 p-3 overflow-hidden flex flex-col">
           <div className="space-y-3 mb-3">
-            <div className="text-xs text-violet-200/35">Describe a vibe and let Grok create mixer settings.</div>
+            <div className="text-xs text-violet-200/45">Describe a vibe and let Grok create mixer settings.</div>
 
             <Textarea
               value={presetPrompt}
@@ -345,7 +345,7 @@ export function GrokCopilot({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-xs font-medium text-violet-100">{preset.name}</p>
-                      <p className="text-[10px] text-violet-200/35">{preset.description}</p>
+                      <p className="text-[10px] text-violet-200/45">{preset.description}</p>
                     </div>
                     <Button
                       size="sm"
@@ -364,7 +364,7 @@ export function GrokCopilot({
 
         <TabsContent value="recommend" className="flex-1 p-3 overflow-hidden flex flex-col">
           <div className="space-y-3 mb-3">
-            <div className="text-xs text-violet-200/35">Get AI recommendations for your next track.</div>
+            <div className="text-xs text-violet-200/45">Get AI recommendations for your next track.</div>
 
             <Button
               onClick={getRecommendations}
@@ -387,7 +387,7 @@ export function GrokCopilot({
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div>
                         <p className="text-xs font-medium text-violet-100">{track.title}</p>
-                        <p className="text-[10px] text-violet-200/35">{track.artist}</p>
+                        <p className="text-[10px] text-violet-200/45">{track.artist}</p>
                       </div>
                       <div className="text-[10px] text-cyan-400/90">{Math.round(rec.compatibilityScore * 100)}%</div>
                     </div>
@@ -421,7 +421,7 @@ export function GrokCopilot({
           <ScrollArea className="h-full">
             <div className="space-y-2">
               {coachMessages.length === 0 ? (
-                <div className="text-center py-8 text-violet-200/30 text-xs">
+                <div className="text-center py-8 text-violet-200/40 text-xs">
                   <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   DJ tips and explanations will appear here as you use the system.
                 </div>

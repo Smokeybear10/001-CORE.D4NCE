@@ -111,7 +111,6 @@ export function GrokChatPanel({
               )
               
               if (track) {
-                console.log(`[GrokChat] Loading "${track.title}" for transition`)
                 
                 // Determine which deck to load to (opposite of the currently playing one)
                 const targetDeck: "A" | "B" = trackA && !trackB ? "B" : !trackA && trackB ? "A" : musicObject.crossfader < 0.5 ? "B" : "A"
@@ -158,7 +157,6 @@ export function GrokChatPanel({
                   }
                 }, 1000) // Wait 1 second for track to load
               } else {
-                console.warn("[GrokChat] Track not found for transition:", parsed.trackTitle || parsed.trackId)
               }
             } else {
               // Normal transition between currently loaded tracks
@@ -192,7 +190,6 @@ export function GrokChatPanel({
                   console.error("[GrokChat] Error requesting transition:", error)
                 }
               } else {
-                console.warn("[GrokChat] Cannot transition - missing tracks")
               }
             }
           }
@@ -238,12 +235,10 @@ export function GrokChatPanel({
               }
             }
             
-            console.log(`[GrokChat] Loading "${track.title}" to deck ${targetDeck}`)
             onLoadTrack(track, targetDeck)
             // Auto-play after loading (give time for track to load)
             setTimeout(() => onAction("play", { deck: targetDeck }), 500)
           } else {
-            console.warn("[GrokChat] Track not found:", parsed.trackId || parsed.trackTitle)
           }
           break
         case "play":
@@ -309,7 +304,6 @@ export function GrokChatPanel({
           const lines = chunk.split("\n").filter((line) => line.trim())
 
           for (const line of lines) {
-            console.log("[GrokChat] Stream line:", line)
 
             if (line.trim() === "[DONE]" || line.trim() === "data: [DONE]") continue
 
@@ -317,7 +311,6 @@ export function GrokChatPanel({
             if (line.startsWith("0:")) {
               try {
                 const text = JSON.parse(line.slice(2))
-                console.log("[GrokChat] Text delta:", text)
                 fullText += text
                 setLocalMessages((prev) =>
                   prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)),
@@ -330,7 +323,6 @@ export function GrokChatPanel({
             else if (line.startsWith("2:")) {
               try {
                 const parsed = JSON.parse(line.slice(2))
-                console.log("[GrokChat] Message object:", parsed)
                 if (parsed.content) {
                   fullText += parsed.content
                   setLocalMessages((prev) =>
@@ -347,7 +339,6 @@ export function GrokChatPanel({
               if (jsonStr && jsonStr !== "[DONE]") {
                 try {
                   const data = JSON.parse(jsonStr)
-                  console.log("[GrokChat] Data object:", data)
                   const content = data.delta || data.choices?.[0]?.delta?.content || data.content || data.text
                   if (content) {
                     fullText += content
@@ -364,7 +355,6 @@ export function GrokChatPanel({
             else if (line.startsWith("{")) {
               try {
                 const data = JSON.parse(line)
-                console.log("[GrokChat] Raw JSON object:", data)
                 const content = data.delta || data.choices?.[0]?.delta?.content || data.content || data.text
                 if (content) {
                   fullText += content
@@ -379,7 +369,6 @@ export function GrokChatPanel({
           }
         }
 
-        console.log("[GrokChat] Final text:", fullText)
 
         // If no text was received, show error
         if (!fullText || fullText.trim().length === 0) {
@@ -445,17 +434,31 @@ export function GrokChatPanel({
     onCommand: handleVoiceCommand,
   })
 
-  // Audio analysis
+  // Audio analysis — pause when tab is hidden
   useEffect(() => {
     setIsAnalyzing(true)
-    const interval = setInterval(() => {
-      const { frequency } = getAnalyserData()
-      const snapshot = analyzeFrequencyData(frequency)
-      setAudioSnapshot(snapshot)
-    }, 100)
+    let interval: NodeJS.Timeout | null = null
+
+    const start = () => {
+      if (interval) return
+      interval = setInterval(() => {
+        const { frequency } = getAnalyserData()
+        const snapshot = analyzeFrequencyData(frequency)
+        setAudioSnapshot(snapshot)
+      }, 100)
+    }
+
+    const stop = () => {
+      if (interval) { clearInterval(interval); interval = null }
+    }
+
+    const onVisibility = () => document.hidden ? stop() : start()
+    document.addEventListener("visibilitychange", onVisibility)
+    start()
 
     return () => {
-      clearInterval(interval)
+      stop()
+      document.removeEventListener("visibilitychange", onVisibility)
       setIsAnalyzing(false)
     }
   }, [getAnalyserData])
@@ -481,7 +484,7 @@ export function GrokChatPanel({
         <div className="px-3 pt-2 pb-3 space-y-2">
           {localMessages.length === 0 && (
             <div className="pt-4 pb-2 space-y-3">
-              <p className="text-[10px] font-mono text-violet-300/25 tracking-wide">
+              <p className="text-[10px] font-mono text-violet-300/40 tracking-wide">
                 Control the mix with text or voice.
               </p>
               <div className="grid grid-cols-2 gap-1.5">
@@ -495,7 +498,7 @@ export function GrokChatPanel({
                     key={label}
                     onClick={() => sendMessage(prompt)}
                     disabled={isLoading}
-                    className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/40 hover:text-violet-200/70 bg-violet-500/[0.04] hover:bg-violet-500/[0.08] border border-violet-500/[0.08] hover:border-violet-400/20 disabled:opacity-30 transition-all text-left"
+                    className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/50 hover:text-violet-200/70 bg-violet-500/[0.04] hover:bg-violet-500/[0.08] border border-violet-500/[0.08] hover:border-violet-400/20 disabled:opacity-30 transition-all text-left"
                   >
                     {label}
                   </button>
@@ -513,7 +516,7 @@ export function GrokChatPanel({
               ) : (
                 <div className="text-white/55 px-0.5">
                   {message.content.replace(/```json[\s\S]*?```/g, "").trim() || (
-                    <span className="text-violet-300/20 italic">Processing...</span>
+                    <span className="text-violet-300/35 italic">Processing...</span>
                   )}
                 </div>
               )}
@@ -530,7 +533,7 @@ export function GrokChatPanel({
 
           {interimTranscript && (
             <div className="text-[11px] text-right">
-              <span className="inline-block px-2.5 py-1.5 rounded-lg bg-red-500/[0.06] text-white/30 italic border border-red-500/10">
+              <span className="inline-block px-2.5 py-1.5 rounded-lg bg-red-500/[0.06] text-white/40 italic border border-red-500/10">
                 {interimTranscript}...
               </span>
             </div>
@@ -567,6 +570,7 @@ export function GrokChatPanel({
             type="button"
             onClick={toggleListening}
             disabled={!isSupported}
+            aria-label={isListening ? "Stop listening" : "Start voice input"}
             className={cn(
               "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all",
               isListening
@@ -576,23 +580,26 @@ export function GrokChatPanel({
           >
             {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
           </button>
+          <label htmlFor="grok-chat-input" className="sr-only">Chat with AI DJ</label>
           <input
+            id="grok-chat-input"
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             placeholder="Ask anything..."
-            className="flex-1 h-8 px-2.5 text-[11px] font-mono bg-transparent border border-violet-500/[0.1] rounded-lg text-white/60 placeholder:text-violet-300/20 focus:outline-none focus:border-violet-400/25 transition-colors"
+            className="flex-1 h-8 px-2.5 text-[11px] font-mono bg-transparent border border-violet-500/[0.1] rounded-lg text-white/60 placeholder:text-violet-300/35 focus:outline-none focus:border-violet-400/25 transition-colors"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !textInput.trim()}
+            aria-label="Send message"
             className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-violet-300/50 hover:text-violet-200/80 hover:bg-violet-500/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all"
           >
             <Send className="h-3 w-3" />
           </button>
         </form>
-        {/* Model selector — tiny, out of the way */}
-        <div className="flex gap-1 mt-1.5 px-0.5">
+        {/* Model selector */}
+        <div className="flex gap-1.5 mt-1.5 px-0.5">
           {([
             { id: "sonnet" as const, label: "Sonnet" },
             { id: "haiku" as const, label: "Haiku" },
@@ -602,10 +609,10 @@ export function GrokChatPanel({
               key={id}
               onClick={() => setSelectedModel(id)}
               className={cn(
-                "px-1.5 py-0.5 rounded text-[8px] font-mono transition-colors",
+                "px-2.5 py-1.5 rounded text-[10px] font-mono transition-colors",
                 selectedModel === id
-                  ? "text-violet-200/50"
-                  : "text-violet-300/15 hover:text-violet-300/30",
+                  ? "text-violet-200/70 bg-violet-500/10"
+                  : "text-violet-300/40 hover:text-violet-300/60",
               )}
             >
               {label}

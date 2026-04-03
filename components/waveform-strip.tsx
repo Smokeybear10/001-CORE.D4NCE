@@ -80,8 +80,8 @@ export function WaveformStrip({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {bpm && <span className="text-[9px] font-mono text-violet-300/30 tabular-nums">{Math.round(bpm)}</span>}
-          {camelotKey && <span className="text-[8px] font-mono text-violet-300/20">{camelotKey}</span>}
+          {bpm && <span className="text-[9px] font-mono text-violet-300/40 tabular-nums">{Math.round(bpm)}</span>}
+          {camelotKey && <span className="text-[8px] font-mono text-violet-300/35">{camelotKey}</span>}
         </div>
       </div>
 
@@ -137,7 +137,7 @@ export function WaveformStrip({
 
       {/* Time */}
       <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-3 pb-1 pointer-events-none">
-        <span className="text-[8px] font-mono text-violet-300/20 tabular-nums">{formatTime(currentTime)}</span>
+        <span className="text-[8px] font-mono text-violet-300/35 tabular-nums">{formatTime(currentTime)}</span>
         <span className="text-[8px] font-mono text-violet-300/20 tabular-nums">-{formatTime(remaining)}</span>
       </div>
 
@@ -146,6 +146,7 @@ export function WaveformStrip({
         type="button"
         onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay() }}
         disabled={!track}
+        aria-label={isPlaying ? `Pause deck ${deck}` : `Play deck ${deck}`}
         className={cn(
           "absolute left-3 bottom-1 z-10 flex h-5 w-5 items-center justify-center rounded-full transition-all",
           "opacity-0 group-hover:opacity-100 pointer-events-auto",

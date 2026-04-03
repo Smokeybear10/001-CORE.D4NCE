@@ -1,4 +1,4 @@
-# D4NCE (xBeat) — Project Guide
+# D4NCE — Project Guide
 
 ## Commands
 

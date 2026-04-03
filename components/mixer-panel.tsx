@@ -135,7 +135,7 @@ export function MixerPanel({
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "flex-1 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] transition-all rounded",
+              "flex-1 py-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-all rounded",
               tab === id ? "text-violet-200/65 bg-violet-500/[0.12]" : "text-violet-300/30 hover:text-violet-300/45",
             )}
           >
