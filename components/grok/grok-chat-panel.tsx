@@ -7,6 +7,7 @@ import { analyzeFrequencyData, describeAudioState, type AudioSnapshot } from "@/
 import type { Track, MusicObject, TransitionPlan } from "@/lib/types"
 import type { SongStructure } from "@/lib/song-structure"
 import { structureToPromptText, findNextExitPoint, findBestEntryPoint } from "@/lib/song-structure"
+import { getCamelotCompatibility } from "@/lib/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Mic, MicOff, Send } from "lucide-react"
 import type { AIModelId } from "@/lib/ai-model"
@@ -430,6 +431,111 @@ export function GrokChatPanel({
     [sendMessage],
   )
 
+  const narrateTransition = useCallback(() => {
+    const ctx = getAudioContext?.()
+    const camelotA = ctx?.camelotA ?? null
+    const camelotB = ctx?.camelotB ?? null
+    const energyPhase = ctx?.energyPhase ?? null
+    const energyTrend = typeof ctx?.energyTrend === "number" ? ctx.energyTrend : null
+    const averageEnergy = typeof ctx?.averageEnergy === "number" ? ctx.averageEnergy : null
+
+    const compat = camelotA && camelotB ? getCamelotCompatibility(camelotA, camelotB) : 0
+    const compatLabel = compat >= 0.85 ? "perfect harmonic match"
+      : compat >= 0.7 ? "compatible"
+      : compat >= 0.5 ? "close enough — riding the filter"
+      : compat > 0 ? "enharmonic shift — easing the bass"
+      : "key unknown — feeling it out"
+
+    const outDeck: "A" | "B" = isPlayingB && !isPlayingA ? "B"
+      : isPlayingA && isPlayingB ? (musicObject.crossfader <= 0.5 ? "A" : "B")
+      : "A"
+    const inDeck: "A" | "B" = outDeck === "A" ? "B" : "A"
+    const outTrack = outDeck === "A" ? trackA : trackB
+    const inTrack = inDeck === "A" ? trackA : trackB
+    const outStructure = outDeck === "A" ? structureA : structureB
+    const inStructure = inDeck === "A" ? structureA : structureB
+    const outTime = outDeck === "A" ? currentTimeA : currentTimeB
+    const outDur = outDeck === "A" ? durationA : durationB
+    const outCamelot = outDeck === "A" ? camelotA : camelotB
+    const inCamelot = inDeck === "A" ? camelotA : camelotB
+
+    const exitInfo = outStructure && typeof outTime === "number" && typeof outDur === "number"
+      ? findNextExitPoint(outStructure, outTime, outDur)
+      : null
+    const entryInfo = inStructure ? findBestEntryPoint(inStructure, 16) : null
+
+    const fmtTime = (s?: number) => {
+      if (typeof s !== "number" || !isFinite(s)) return "—"
+      const m = Math.floor(s / 60)
+      const sec = Math.floor(s % 60).toString().padStart(2, "0")
+      return `${m}:${sec}`
+    }
+
+    const trendLabel = energyTrend == null ? null
+      : energyTrend > 0.06 ? `rising +${Math.round(energyTrend * 100)}%`
+      : energyTrend < -0.06 ? `dropping ${Math.round(energyTrend * 100)}%`
+      : "steady"
+
+    const lines: string[] = []
+    lines.push("▸ scanning the room…")
+    if (outTrack) {
+      lines.push(`▸ outgoing · deck ${outDeck} · ${outTrack.title}${outCamelot ? ` · ${outCamelot}` : ""}${typeof outTime === "number" ? ` · ${fmtTime(outTime)} of ${fmtTime(outDur)}` : ""}`)
+    } else {
+      lines.push(`▸ outgoing · deck ${outDeck} · empty`)
+    }
+    if (inTrack) {
+      lines.push(`▸ incoming · deck ${inDeck} · ${inTrack.title}${inCamelot ? ` · ${inCamelot}` : ""}`)
+    } else {
+      lines.push(`▸ incoming · deck ${inDeck} · empty — picking from library`)
+    }
+    if (camelotA && camelotB) {
+      lines.push(`▸ harmony · ${camelotA} → ${camelotB} · ${compatLabel} (${Math.round(compat * 100)}%)`)
+    }
+    if (energyPhase) {
+      const e = averageEnergy != null ? `${Math.round((averageEnergy / 255) * 100)}%` : ""
+      const t = trendLabel ? ` · ${trendLabel}` : ""
+      lines.push(`▸ energy · ${energyPhase}${e ? " · " + e : ""}${t}`)
+    }
+    if (exitInfo && exitInfo.delay > 0.05) {
+      lines.push(`▸ exit · ${exitInfo.reason} in ${exitInfo.delay.toFixed(1)}s`)
+    } else if (exitInfo) {
+      lines.push(`▸ exit · ${exitInfo.reason} now — clean break`)
+    } else {
+      lines.push("▸ exit · next phrase boundary")
+    }
+    if (entryInfo && entryInfo.time > 0) {
+      const target = entryInfo.targetMoment ? ` (${entryInfo.targetMoment})` : ""
+      lines.push(`▸ entry · ${entryInfo.reason} at ${fmtTime(entryInfo.time)}${target}`)
+    } else {
+      lines.push("▸ entry · first drop")
+    }
+    lines.push("▸ blend · 16 bars · easing low EQ, opening filter")
+    lines.push("▸ cuing the deck… stand by")
+
+    let i = 0
+    const tick = () => {
+      const line = lines[i]
+      if (!line) return
+      setLocalMessages((prev) => [
+        ...prev,
+        { id: `narr-${Date.now()}-${i}`, role: "assistant", content: line },
+      ])
+      i++
+      if (i < lines.length) setTimeout(tick, 320 + Math.random() * 220)
+    }
+    tick()
+  }, [
+    getAudioContext, isPlayingA, isPlayingB, musicObject.crossfader,
+    trackA, trackB, structureA, structureB,
+    currentTimeA, currentTimeB, durationA, durationB,
+  ])
+
+  const triggerTransition = useCallback(() => {
+    if (isLoading) return
+    narrateTransition()
+    sendMessage("Create a smooth transition between the two decks")
+  }, [isLoading, narrateTransition, sendMessage])
+
   const { isListening, interimTranscript, error: voiceError, isSupported, toggleListening } = useVoiceCommands({
     onCommand: handleVoiceCommand,
   })
@@ -489,14 +595,14 @@ export function GrokChatPanel({
               </p>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
-                  { label: "Transition", prompt: "Create a smooth transition between the two decks" },
-                  { label: "Match BPM", prompt: "Match the BPM of both decks" },
-                  { label: "Drop bass", prompt: "Drop the bass on deck A" },
-                  { label: "Boost energy", prompt: "Raise the energy — increase the high EQ and add some reverb" },
-                ].map(({ label, prompt }) => (
+                  { label: "Transition", prompt: "Create a smooth transition between the two decks", narrate: true },
+                  { label: "Match BPM", prompt: "Match the BPM of both decks", narrate: false },
+                  { label: "Drop bass", prompt: "Drop the bass on deck A", narrate: false },
+                  { label: "Boost energy", prompt: "Raise the energy — increase the high EQ and add some reverb", narrate: false },
+                ].map(({ label, prompt, narrate }) => (
                   <button
                     key={label}
-                    onClick={() => sendMessage(prompt)}
+                    onClick={() => narrate ? triggerTransition() : sendMessage(prompt)}
                     disabled={isLoading}
                     className="px-2 py-2 rounded-lg text-[10px] font-mono text-violet-300/50 hover:text-violet-200/70 bg-violet-500/[0.04] hover:bg-violet-500/[0.08] border border-violet-500/[0.08] hover:border-violet-400/20 disabled:opacity-30 transition-all text-left"
                   >
@@ -546,7 +652,7 @@ export function GrokChatPanel({
       {/* Persistent transition button */}
       <div className="px-2.5 pt-1">
         <button
-          onClick={() => sendMessage("Create a smooth transition between the two decks")}
+          onClick={triggerTransition}
           disabled={isLoading}
           className="w-full px-2 py-1.5 rounded-lg text-[10px] font-mono text-violet-300/50 hover:text-violet-200/80 bg-violet-500/[0.06] hover:bg-violet-500/[0.12] border border-violet-500/[0.1] hover:border-violet-400/25 disabled:opacity-30 transition-all"
         >
