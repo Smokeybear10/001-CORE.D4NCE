@@ -286,11 +286,11 @@ function Hero({ onEnter }: { onEnter: () => void }) {
 function TransitionStrip() {
   return (
     <section id="live-transition" className="max-w-[1100px] mx-auto px-6 sm:px-8 pb-16 scroll-mt-8">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">
-        <span>Live transition · A → B</span>
-        <span className="hidden sm:inline">16 bars · 32 beats</span>
-      </div>
       <div className="glass rounded-2xl overflow-hidden">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between px-5 py-3 border-b border-white/[0.05] text-[10px] font-mono uppercase tracking-[0.22em] text-slate-400 bg-white/[0.015]">
+          <span>Live transition · A → B</span>
+          <span className="hidden sm:inline">16 bars · 32 beats</span>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
           <div className="p-5 border-b lg:border-b-0 lg:border-r border-white/[0.05] space-y-3">
             <ScrollingWaveform color="violet" label="A · Phase Shift" bpm="128" key1="8A" />
