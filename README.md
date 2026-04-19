@@ -1,5 +1,7 @@
 # D4NCE | AI-Powered DJ System
 
+**Live demo: [d4ncedj.vercel.app](https://d4ncedj.vercel.app/)**
+
 A browser-based dual-deck DJ system with AI mixing. Load tracks, talk to the AI in plain English or by voice, and let it handle transitions, EQ automation, beat matching, and effect chains while you stay in creative control. Runs entirely in the browser using the Web Audio API.
 
 ## Quick Start
@@ -66,6 +68,8 @@ The AI copilot controls the mix through natural language. It doesn't just execut
 - Detect song structure (phrases, drops, buildups, breakdowns, outros) for phrase-aligned transitions
 - Respond with text-to-speech using 6 voice options: Ara, Rex, Sal, Eve, Una, Leo
 
+**Live narration.** Pressing the Transition button streams a play-by-play in the AI panel using real engine data -- outgoing deck, incoming deck, Camelot key match, energy phase, exit point, entry cue, blend duration -- before the AI plan lands.
+
 **Quick action buttons** for common commands: Transition, Match BPM, Drop Bass, Boost Energy.
 
 ### Voice Control
@@ -121,7 +125,7 @@ Full-screen, audio-reactive 3D visualization powered by Three.js and React Three
 
 Eight color themes: Neonpunk (default), Cyberpunk, Neon, Monochrome, Fire, Aurora, Sunset, Ocean.
 
-### Interface
+### Workspace
 
 - **Draggable panels** -- mixer, library, and AI copilot panels can be moved anywhere on screen, minimized, or expanded
 - **Z-index management** -- click any panel to bring it to front
@@ -130,9 +134,16 @@ Eight color themes: Neonpunk (default), Cyberpunk, Neon, Monochrome, Fire, Auror
 - **Keyboard shortcut** -- Escape to minimize expanded panels
 - **Skip intro** -- append `?skipIntro` to URL to bypass the landing animation
 
-### Landing Page
+### Landing
 
-Animated entrance with a particle system, waveform bars, scan lines, and a perspective grid. The title renders in a magenta-to-orange gradient with glow effects. Four-phase staggered animation sequence before the "Enter" button appears.
+Single-column marketing landing with:
+
+- Breathing **D4NCE** wordmark in Orbitron (mono display) with a violet → fuchsia gradient
+- Animated canvas backdrop (waveform bars, particles, perspective grid, scan lines) that fades out on scroll so the page stays readable without lag
+- Live transition demo strip: two scrolling waveforms, crossfade automation curve, and an AI terminal that types plausible analysis (`▸ key match: 8A → 9A · compatible`)
+- Launch loader: ~2s boot sequence with streaming terminal lines and a three-color progress meter before the workspace fades in
+
+The landing respects `prefers-reduced-motion` and meets WCAG AA contrast across all text.
 
 ## Tech Stack
 
@@ -152,14 +163,18 @@ Animated entrance with a particle system, waveform bars, scan lines, and a persp
 app/
   api/grok/           # AI endpoints: analyze, transition, voice, speak, preset, recommend
   api/tracks/         # Track upload, retrieval, update, delete
-  page.tsx            # Landing page + main app shell
+  page.tsx            # Main app shell (gates workspace behind landing)
   layout.tsx          # Root layout, fonts, metadata
+  globals.css         # Tailwind base + keyframes + glass/btn utilities
 components/
-  dj/                 # Deck controls, mixer panel, help modal
-  grok/               # AI chat panel, voice control, copilot
+  landing/            # Marketing landing + launch loader + hero canvas
+  dj/                 # Deck controls, help modal
+  grok/               # AI chat panel, voice control, copilot, transition status
   visualizer/         # 3D audio-reactive visualization
   library/            # Track library with search and upload
+  ui/                 # shadcn/ui primitives (do not edit directly)
   draggable-card.tsx  # Draggable/resizable panel system
+  mixer-panel.tsx     # Mixer with EQ/FX/ISO/A|B tabs
   waveform-strip.tsx  # Per-deck waveform display
   top-bar.tsx         # App header with toggle buttons
   transport-bar.tsx   # Transport controls
@@ -170,9 +185,13 @@ hooks/
 lib/
   music-engine.ts     # Core audio engine (Web Audio API graph)
   music-store.ts      # Global track and deck state
-  types.ts            # Shared TypeScript types
+  types.ts            # Shared TypeScript types (Camelot wheel, music object)
   audio-analyzer.ts   # Real-time frequency analysis
   bpm-detector.ts     # FFT-based tempo detection
+  key-detector.ts     # Musical key detection
+  song-structure.ts   # Phrase / drop / buildup analysis
+  transition-builder.ts # Automation curve generators
+  track-scorer.ts     # Compatibility scoring for recommendations
   ai-model.ts         # AI model selection and configuration
 ```
 
@@ -205,16 +224,18 @@ lib/
 ## Commands
 
 ```bash
-pnpm dev            # Dev server on port 2001 (Turbopack)
-pnpm build          # Production build
-pnpm start          # Production server on port 3001
-pnpm lint           # ESLint
-pnpm tsc --noEmit   # Type check (always run before shipping)
+pnpm dev         # Dev server on port 2001 (Turbopack)
+pnpm build       # Production build
+pnpm start       # Production server on port 3001
+pnpm lint        # ESLint
+pnpm typecheck   # TypeScript check (run before shipping)
 ```
+
+> **Warning:** `next.config.mjs` has `ignoreBuildErrors: true` -- TypeScript errors do NOT block production builds. Always run `pnpm typecheck` before pushing.
 
 ## Deployment
 
-Runs on Vercel. Set all three environment variables in the Vercel dashboard and push to `main`.
+Runs on Vercel at [d4ncedj.vercel.app](https://d4ncedj.vercel.app/). Set all three environment variables in the Vercel dashboard and push to `main`.
 
 ---
 
