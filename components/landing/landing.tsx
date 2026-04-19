@@ -4,21 +4,32 @@ import { useEffect, useRef, useState } from "react"
 import { HeroCanvas } from "./hero-canvas"
 
 export function LandingPage({ onEnter, skipIntro: _skipIntro }: { onEnter: () => void; skipIntro?: boolean }) {
-  const [bgOpacity, setBgOpacity] = useState(1)
+  const bgRef = useRef<HTMLDivElement>(null)
   const [launching, setLaunching] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => {
+    const el = bgRef.current
+    if (!el) return
+    let raf = 0
+    let scheduled = false
+    const apply = () => {
+      scheduled = false
       const y = window.scrollY
       const vh = window.innerHeight
       const raw = 1 - y / (vh * 0.45)
       const fade = Math.max(0, Math.min(1, raw)) ** 1.6
-      setBgOpacity(fade)
+      el.style.opacity = String(fade)
     }
-    onScroll()
+    const onScroll = () => {
+      if (scheduled) return
+      scheduled = true
+      raf = requestAnimationFrame(apply)
+    }
+    apply()
     window.addEventListener("scroll", onScroll, { passive: true })
     window.addEventListener("resize", onScroll)
     return () => {
+      cancelAnimationFrame(raf)
       window.removeEventListener("scroll", onScroll)
       window.removeEventListener("resize", onScroll)
     }
@@ -32,8 +43,9 @@ export function LandingPage({ onEnter, skipIntro: _skipIntro }: { onEnter: () =>
   return (
     <main className="relative min-h-dvh w-full bg-[#0d0221] text-slate-100 overflow-x-hidden">
       <div
-        className="fixed inset-0 z-0 transition-opacity duration-100 ease-out"
-        style={{ opacity: bgOpacity }}
+        ref={bgRef}
+        className="fixed inset-0 z-0"
+        style={{ opacity: 1, willChange: "opacity", contain: "strict" }}
         aria-hidden
       >
         <HeroCanvas intensity="full" />
@@ -311,34 +323,59 @@ function ScrollingWaveform({ color, label, bpm, key1, reverse }: {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext("2d")
+    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true })
     if (!ctx) return
     let raf = 0
     let offset = reverse ? 240 : 0
-    const dpr = window.devicePixelRatio || 1
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+    let gradCached: CanvasGradient | null = null
+    let lastH = 0
+
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
-      ctx.scale(dpr, dpr)
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr))
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      gradCached = null
     }
     resize()
+    let resizeRaf = 0
+    const onResize = () => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(resize) }
+    window.addEventListener("resize", onResize)
+
+    let visible = true
+    const io = new IntersectionObserver((entries) => {
+      visible = entries[0]?.isIntersecting ?? true
+    }, { threshold: 0 })
+    io.observe(canvas)
+
+    let tabVisible = !document.hidden
+    const onVisibility = () => { tabVisible = !document.hidden }
+    document.addEventListener("visibilitychange", onVisibility)
 
     const draw = () => {
+      if (!visible || !tabVisible) {
+        raf = requestAnimationFrame(draw)
+        return
+      }
       const w = canvas.width / dpr
       const h = canvas.height / dpr
+      if (!gradCached || h !== lastH) {
+        lastH = h
+        const grad = ctx.createLinearGradient(0, 0, 0, h)
+        if (color === "violet") {
+          grad.addColorStop(0, "rgba(196,181,253,0.85)")
+          grad.addColorStop(1, "rgba(232,121,249,0.65)")
+        } else {
+          grad.addColorStop(0, "rgba(252,176,64,0.85)")
+          grad.addColorStop(1, "rgba(244,114,182,0.65)")
+        }
+        gradCached = grad
+      }
       ctx.clearRect(0, 0, w, h)
       offset += reverse ? -0.4 : 0.4
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      if (color === "violet") {
-        grad.addColorStop(0, "rgba(196,181,253,0.85)")
-        grad.addColorStop(1, "rgba(232,121,249,0.65)")
-      } else {
-        grad.addColorStop(0, "rgba(252,176,64,0.85)")
-        grad.addColorStop(1, "rgba(244,114,182,0.65)")
-      }
-      ctx.fillStyle = grad
-      const barCount = 140
+      ctx.fillStyle = gradCached
+      const barCount = 110
       const barW = w / barCount
       for (let i = 0; i < barCount; i++) {
         const x = i + offset * 0.5
@@ -351,7 +388,13 @@ function ScrollingWaveform({ color, label, bpm, key1, reverse }: {
       raf = requestAnimationFrame(draw)
     }
     raf = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(raf)
+    return () => {
+      cancelAnimationFrame(raf)
+      cancelAnimationFrame(resizeRaf)
+      io.disconnect()
+      document.removeEventListener("visibilitychange", onVisibility)
+      window.removeEventListener("resize", onResize)
+    }
   }, [color, reverse])
 
   const colorClass = color === "violet" ? "text-violet-300" : "text-amber-300"

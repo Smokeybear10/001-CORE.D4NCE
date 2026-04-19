@@ -10,7 +10,7 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext("2d")
+    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true })
     if (!ctx) return
 
     let w = 0, h = 0
@@ -35,9 +35,14 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
       lineGrad.addColorStop(1, "rgba(246,46,151,0.18)")
     }
     resize()
-    window.addEventListener("resize", resize)
+    let resizeRaf = 0
+    const onResize = () => {
+      cancelAnimationFrame(resizeRaf)
+      resizeRaf = requestAnimationFrame(resize)
+    }
+    window.addEventListener("resize", onResize)
 
-    const MAX_P = intensity === "minimal" ? 6 : intensity === "ambient" ? 12 : 20
+    const MAX_P = intensity === "minimal" ? 4 : intensity === "ambient" ? 8 : 14
     const px = new Float32Array(MAX_P)
     const py = new Float32Array(MAX_P)
     const pvx = new Float32Array(MAX_P)
@@ -47,7 +52,26 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
     let pCount = 0
 
     let raf = 0
+    let running = true
+    let tabVisible = !document.hidden
+
+    const parent = canvas.parentElement
+    const readParentOpacity = () => {
+      if (!parent) return 1
+      const o = parent.style.opacity
+      if (o === "") return 1
+      const parsed = parseFloat(o)
+      return isNaN(parsed) ? 1 : parsed
+    }
+
     const draw = (time: number) => {
+      if (!running) return
+      const parentOpacity = readParentOpacity()
+      if (!tabVisible || parentOpacity < 0.02) {
+        // Skip expensive work but stay in the RAF loop so we resume instantly when visible again.
+        raf = requestAnimationFrame(draw)
+        return
+      }
       const t = time * 0.001
       const cx = w * 0.5, cy = h * 0.55
 
@@ -61,7 +85,7 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
       }
 
       if (intensity !== "minimal") {
-        const barCount = intensity === "full" ? 28 : 18
+        const barCount = intensity === "full" ? 22 : 16
         const barW = w / barCount
         ctx.fillStyle = `rgba(160,100,240,${intensity === "full" ? 0.07 : 0.05})`
         for (let i = 0; i < barCount; i++) {
@@ -76,7 +100,7 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
         ctx.beginPath()
         ctx.lineWidth = 1.5
         ctx.strokeStyle = lineGrad
-        for (let i = 0; i <= w; i += 8) {
+        for (let i = 0; i <= w; i += 12) {
           const p = i / w
           const env = 1 - (Math.abs(p - 0.5) * 2) ** 2
           const y = cy + (Math.sin(t * 1.5 + p * 14) * h * 0.03 + Math.sin(t * 0.9 + p * 7) * h * 0.02) * env
@@ -85,7 +109,7 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
         ctx.stroke()
       }
 
-      if (pCount < MAX_P && Math.random() < (intensity === "full" ? 0.1 : 0.05)) {
+      if (pCount < MAX_P && Math.random() < (intensity === "full" ? 0.08 : 0.04)) {
         const i = pCount++
         px[i] = cx + (Math.random() - 0.5) * w * 0.5
         py[i] = cy + (Math.random() - 0.5) * h * 0.4
@@ -111,7 +135,16 @@ export function HeroCanvas({ intensity = "full", className = "" }: { intensity?:
     }
     raf = requestAnimationFrame(draw)
 
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize) }
+    const onVisibility = () => { tabVisible = !document.hidden }
+    document.addEventListener("visibilitychange", onVisibility)
+
+    return () => {
+      running = false
+      cancelAnimationFrame(raf)
+      cancelAnimationFrame(resizeRaf)
+      window.removeEventListener("resize", onResize)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
   }, [intensity])
 
   return <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full ${className}`} aria-hidden />
