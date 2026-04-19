@@ -241,6 +241,7 @@ function Hero({ onEnter }: { onEnter: () => void }) {
           textShadow: "0 0 80px rgba(167,139,250,0.25)",
           animation: "breath 6s ease infinite",
         }}
+        aria-label="D4NCE — AI that mixes like a pro DJ, beat by beat, key by key"
       >
         D4NCE
       </h1>
