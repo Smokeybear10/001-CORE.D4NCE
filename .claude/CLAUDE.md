@@ -3,14 +3,14 @@
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server
-pnpm build        # Build for production
-pnpm start        # Start production server
-pnpm lint         # Run ESLint
-pnpm tsc --noEmit  # Type check (no typecheck script in package.json)
+pnpm dev          # Dev server on :2001 (Turbopack)
+pnpm build        # Production build
+pnpm start        # Production server on :3001
+pnpm lint         # ESLint
+pnpm typecheck    # tsc --noEmit (always run before shipping)
 ```
 
-> **Warning:** `next.config.mjs` has `ignoreBuildErrors: true` — TypeScript errors do NOT block production builds. Always run `pnpm tsc --noEmit` before shipping.
+> **Warning:** `next.config.mjs` has `ignoreBuildErrors: true` — TypeScript errors do NOT block production builds. Always run `pnpm typecheck` before pushing.
 
 ## Tech Stack
 
@@ -26,22 +26,53 @@ pnpm tsc --noEmit  # Type check (no typecheck script in package.json)
 ## Project Structure
 
 ```
-app/                  # Next.js App Router
-  api/grok/           # Grok AI endpoints (analyze, preset, recommend, speak, transition, voice)
-  api/tracks/         # Track upload + retrieval
+app/
+  api/grok/             # AI endpoints (analyze, preset, recommend, speak, transition, voice)
+  api/tracks/           # Track upload, retrieval, update, delete
+  page.tsx              # Gates workspace behind landing
+  layout.tsx            # Root layout, fonts, metadata
+  globals.css           # Tailwind base + keyframes + glass/btn utilities
+
 components/
-  dj/                 # Deck + mixer controls
-  grok/               # AI chat panel, copilot, voice control
-  ui/                 # shadcn/ui primitives (don't edit directly)
-  visualizer/         # 3D audio visualization
-  library/            # Track library UI
-hooks/                # Custom React hooks (music engine, voice, tracks)
+  landing/              # Marketing landing + hero canvas + launch loader
+  dj/dj-help-modal.tsx  # 6-step onboarding tour
+  grok/grok-chat-panel.tsx  # AI chat panel (used by ai-panel.tsx)
+  library/music-library.tsx # Library UI (used by library-drawer.tsx)
+  visualizer/           # 3D audio-reactive visualization
+  ui/                   # shadcn/ui primitives (do NOT edit directly)
+  ai-panel.tsx          # AI chat wrapper
+  draggable-card.tsx    # Floating panel system
+  error-boundary.tsx
+  library-drawer.tsx
+  mixer-panel.tsx       # Mixer with EQ/FX/ISO/A|B tabs
+  top-bar.tsx
+  transport-bar.tsx
+
+hooks/
+  use-music-engine.ts   # Audio engine lifecycle
+  use-tracks.ts         # Track CRUD + upload
+  use-voice-commands.ts # Speech recognition
+
 lib/
-  music-engine.ts     # Core audio engine (25KB — handle carefully)
-  music-store.ts      # Global state
-  types.ts            # Shared TypeScript types
-  audio-analyzer.ts   # Frequency analysis
-  bpm-detector.ts     # BPM detection
+  music-engine.ts       # Core Web Audio graph (25KB — handle carefully)
+  music-store.ts        # Global track + deck state
+  types.ts              # Shared types (Camelot wheel, MusicObject, Track)
+  audio-analyzer.ts     # Realtime frequency analysis
+  audio-context-buffer.ts
+  bpm-detector.ts       # FFT-based tempo detection
+  key-detector.ts       # Musical key detection
+  song-structure.ts     # Phrase/drop/buildup analysis
+  track-metadata.ts
+  track-scorer.ts       # Compatibility scoring for recommendations
+  waveform-generator.ts
+  ai-model.ts           # Model selection/config
+  dj-help-steps.ts      # Onboarding tour steps
+  utils.ts
+
+assets/showcase/        # README gifs (landing, ai-copilot, ai-transition)
+docs/                   # AI_TRANSITION_SYSTEM.md and other deep docs
+plans/                  # Per-feature plans (ephemeral)
+public/                 # Next.js static assets (icons, placeholder images, uploads/)
 ```
 
 ## TypeScript
