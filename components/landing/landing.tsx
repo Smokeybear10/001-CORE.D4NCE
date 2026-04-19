@@ -256,14 +256,14 @@ function Hero({ onEnter }: { onEnter: () => void }) {
         <button
           type="button"
           onClick={onEnter}
-          className="btn-primary text-[13.5px] px-5 py-2.5 rounded-md inline-flex items-center gap-2 font-medium"
+          className="btn-primary text-[13.5px] px-5 min-h-[44px] rounded-md inline-flex items-center gap-2 font-medium"
         >
           Launch the mix <span aria-hidden>→</span>
         </button>
         <button
           type="button"
           onClick={() => setDemoNotice(true)}
-          className="text-[13px] text-slate-400 hover:text-slate-100 transition-colors font-mono inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
+          className="text-[13px] text-slate-400 hover:text-slate-100 transition-colors font-mono inline-flex items-center gap-1.5 underline-offset-4 hover:underline px-2 min-h-[44px]"
         >
           watch demo · 90s
         </button>
@@ -464,7 +464,7 @@ function Footer() {
           href="https://thomasou.com/index.html#projects"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-slate-300 transition-colors"
+          className="hover:text-slate-300 transition-colors inline-flex items-center min-h-[44px] py-2"
         >
           more projects
         </a>
