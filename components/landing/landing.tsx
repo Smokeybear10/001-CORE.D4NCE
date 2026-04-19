@@ -458,9 +458,9 @@ function FeaturePills() {
 
 function Footer() {
   return (
-    <footer className="max-w-[1100px] mx-auto px-6 sm:px-8 py-10 border-t border-white/[0.04] flex flex-wrap justify-between gap-4 text-[11px] text-slate-400 font-mono">
+    <footer className="max-w-[1100px] mx-auto px-6 sm:px-8 py-10 border-t border-white/[0.04] flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:gap-4 text-[11px] text-slate-400 font-mono">
       <div>d4nce · v0.4 · ai co-pilot for djs</div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <a
           href="https://thomasou.com/index.html#projects"
           target="_blank"
