@@ -285,9 +285,9 @@ function Hero({ onEnter }: { onEnter: () => void }) {
 function TransitionStrip() {
   return (
     <section id="live-transition" className="max-w-[1100px] mx-auto px-6 sm:px-8 pb-16 scroll-mt-8">
-      <div className="flex items-center justify-between mb-3 text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">
         <span>Live transition · A → B</span>
-        <span>16 bars · 32 beats</span>
+        <span className="hidden sm:inline">16 bars · 32 beats</span>
       </div>
       <div className="glass rounded-2xl overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
