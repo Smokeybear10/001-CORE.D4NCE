@@ -4,6 +4,20 @@
 
 A browser-based dual-deck DJ system with AI mixing. Load tracks, talk to the AI in plain English or by voice, and let it handle transitions, EQ automation, beat matching, and effect chains while you stay in creative control. Runs entirely in the browser using the Web Audio API.
 
+## Showcase
+
+**Landing + workspace entry.** Breathing wordmark, live transition demo, launch loader, then straight into the dual-deck workspace.
+
+![landing walkthrough](./public/showcase/landing.gif)
+
+**AI narration.** Press Transition and the copilot streams the play-by-play using real engine data: outgoing deck, Camelot key match, energy phase, exit point, entry cue, blend duration.
+
+![ai copilot narration](./public/showcase/ai-copilot.gif)
+
+**AI transition in flight.** The plan runs: crossfade automation, EQ bass swap, filter sweep, and reverb tail, all phrase-aligned to the drop.
+
+![ai transition automation](./public/showcase/ai-transition.gif)
+
 ## Quick Start
 
 ```bash
