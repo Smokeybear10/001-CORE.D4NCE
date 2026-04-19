@@ -442,11 +442,11 @@ function FeaturePills() {
   ]
   return (
     <section className="max-w-[1100px] mx-auto px-6 sm:px-8 pb-24">
-      <div className="flex flex-wrap gap-3 justify-center">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 sm:justify-center max-w-[380px] sm:max-w-none mx-auto">
         {items.map((s) => (
           <span
             key={s}
-            className="text-[11.5px] font-mono text-slate-400 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.01]"
+            className="text-[11.5px] font-mono text-slate-400 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.01] text-center"
           >
             {s}
           </span>
