@@ -176,7 +176,7 @@ function LaunchLoader({ onComplete }: { onComplete: () => void }) {
 
         {/* Progress */}
         <div className="mt-8">
-          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500 mb-2">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.22em] text-slate-400 mb-2">
             <span>booting</span>
             <span className="tabular-nums">{Math.round(progress * 100).toString().padStart(3, "0")}%</span>
           </div>
@@ -226,7 +226,7 @@ function Hero({ onEnter }: { onEnter: () => void }) {
 
   return (
     <section className="max-w-[720px] mx-auto px-6 sm:px-8 pt-32 sm:pt-44 pb-16 text-center">
-      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.01] text-[10.5px] text-slate-500 font-mono mb-12">
+      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.02] text-[10.5px] text-slate-400 font-mono mb-12">
         <span
           className="w-1 h-1 rounded-full bg-cyan-400/80"
           style={{ animation: "subtle-pulse 2.4s infinite" }}
@@ -248,7 +248,7 @@ function Hero({ onEnter }: { onEnter: () => void }) {
       <p className="text-[17px] sm:text-[20px] leading-[1.45] text-slate-300 font-light mb-2">
         AI that mixes like a pro DJ.
       </p>
-      <p className="text-[17px] sm:text-[20px] leading-[1.45] text-slate-500 font-light mb-12">
+      <p className="text-[17px] sm:text-[20px] leading-[1.45] text-slate-400 font-light mb-12">
         Beat by beat. Key by key.
       </p>
 
@@ -457,7 +457,7 @@ function FeaturePills() {
 
 function Footer() {
   return (
-    <footer className="max-w-[1100px] mx-auto px-6 sm:px-8 py-10 border-t border-white/[0.04] flex flex-wrap justify-between gap-4 text-[11px] text-slate-500 font-mono">
+    <footer className="max-w-[1100px] mx-auto px-6 sm:px-8 py-10 border-t border-white/[0.04] flex flex-wrap justify-between gap-4 text-[11px] text-slate-400 font-mono">
       <div>d4nce · v0.4 · ai co-pilot for djs</div>
       <div className="flex items-center gap-4">
         <a
