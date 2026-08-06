@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import { updateTrack, getTrackById } from "@/lib/music-store"
+import { rateLimit } from "@/lib/rate-limit"
 
 const trackAnalysisSchema = z.object({
   title: z.string().describe("The clean song title (e.g. 'Starships', 'Die Young'). Extract from filename/metadata — remove 'Official Video', 'Lyrics', file extensions, etc."),
@@ -18,6 +19,9 @@ const trackAnalysisSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 20)
+    if (limited) return limited
+
     const { trackId, title, artist, filename } = await request.json()
 
     if (!trackId) {

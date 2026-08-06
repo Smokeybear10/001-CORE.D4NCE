@@ -1,9 +1,13 @@
 import { streamText } from "ai"
 import type { NextRequest } from "next/server"
 import { getFastModel } from "@/lib/ai-model"
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 20)
+    if (limited) return limited
+
     const body = await request.json()
     const { command, audioSnapshot, currentTrackA, currentTrackB, musicObject, conversationHistory, availableTracks, audioContext: audioCtx, model: modelOverride } =
       body

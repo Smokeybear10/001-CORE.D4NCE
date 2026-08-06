@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { put } from "@vercel/blob"
 import { addTrack } from "@/lib/music-store"
+import { rateLimit } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 
@@ -26,6 +27,9 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
+    const limited = rateLimit(request, 5)
+    if (limited) return limited
+
     const formData = await request.formData()
     const file = formData.get("file") as File
 

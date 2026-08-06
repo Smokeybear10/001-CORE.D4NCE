@@ -4,6 +4,7 @@ import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import { addPreset } from "@/lib/music-store"
 import type { Preset } from "@/lib/types"
+import { rateLimit } from "@/lib/rate-limit"
 
 const presetSchema = z.object({
   name: z.string().describe("Creative name for the preset"),
@@ -31,6 +32,9 @@ const presetSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 20)
+    if (limited) return limited
+
     const { prompt } = await request.json()
 
     if (!prompt) {

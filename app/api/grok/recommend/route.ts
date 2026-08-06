@@ -4,6 +4,7 @@ import { getAIModel } from "@/lib/ai-model"
 import { z } from "zod"
 import type { Track } from "@/lib/types"
 import { scoreLibrary } from "@/lib/track-scorer"
+import { rateLimit } from "@/lib/rate-limit"
 
 const recommendationSchema = z.object({
   recommendations: z.array(
@@ -19,6 +20,9 @@ const recommendationSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 20)
+    if (limited) return limited
+
     const { currentTrack, library, userPrompt, energyPhase, playedTrackIds } = (await request.json()) as {
       currentTrack: Track
       library: Track[]

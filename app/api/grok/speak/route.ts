@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { rateLimit } from "@/lib/rate-limit"
 
 const XAI_API_KEY = process.env.XAI_API_KEY
 const TTS_URL = "https://api.x.ai/v1/audio/speech"
@@ -8,6 +9,9 @@ type Voice = "Ara" | "Rex" | "Sal" | "Eve" | "Una" | "Leo"
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 20)
+    if (limited) return limited
+
     const { text, voice = "Ara" } = (await request.json()) as { text: string; voice?: Voice }
 
     if (!text) {
