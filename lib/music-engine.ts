@@ -104,9 +104,11 @@ export class MusicEngine {
   private flangerDry: GainNode | null = null
   private flangerMerge: GainNode | null = null
 
-  // Pre-allocated analyser buffers (avoids 120 allocations/sec)
-  private analyserFreqBuffer: Uint8Array | null = null
-  private analyserTimeBuffer: Uint8Array | null = null
+  // Pre-allocated analyser buffers (avoids 120 allocations/sec).
+  // Explicitly ArrayBuffer-backed: the Web Audio getByte*Data signatures reject
+  // the default Uint8Array<ArrayBufferLike>, which could be a SharedArrayBuffer.
+  private analyserFreqBuffer: Uint8Array<ArrayBuffer> | null = null
+  private analyserTimeBuffer: Uint8Array<ArrayBuffer> | null = null
 
   private musicObject: MusicObject = { ...defaultMusicObject }
   private transitionInterval: ReturnType<typeof setInterval> | null = null

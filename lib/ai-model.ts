@@ -12,16 +12,16 @@ const models = {
   grok: () => xai("grok-3"),
 } as const
 
-const DEFAULT_MODEL: AIModelId = "sonnet"
+const DEFAULT_MODEL: AIModelId = "grok"
 
 export function getAIModel(override?: string | null) {
   const id = (override && override in models ? override : DEFAULT_MODEL) as AIModelId
   return models[id]()
 }
 
-// For the voice/chat route which uses grok-3-fast
+// For the voice/chat route, which wants the lowest latency available
 export function getFastModel(override?: string | null) {
-  if (override === "grok") return xai("grok-3-fast")
+  if (override === "sonnet") return anthropic("claude-sonnet-4-6")
   if (override === "haiku") return anthropic("claude-haiku-4-5-20251001")
-  return anthropic("claude-sonnet-4-6")
+  return xai("grok-3-fast")
 }

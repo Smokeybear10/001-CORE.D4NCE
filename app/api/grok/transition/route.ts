@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { Track, MusicObject } from "@/lib/types"
 import { getCamelotCompatibility, CAMELOT_WHEEL } from "@/lib/types"
 import { structureToPromptText, findNextExitPoint, findBestEntryPoint, type SongStructure } from "@/lib/song-structure"
+import { rateLimit } from "@/lib/rate-limit"
 
 const transitionPlanSchema = z.object({
   startDelay: z
@@ -130,12 +131,15 @@ const transitionPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(request, 10)
+    if (limited) return limited
+
     const body = await request.json()
     const modelOverride = body.model as string | undefined
     const { trackA, trackB, currentMusicObject, userPrompt, audioContext: audioCtx, currentTimeA, durationA, currentTimeB, durationB, outgoingDeck, outgoingStructure, incomingStructure } = body as {
       trackA: Track
       trackB: Track
-      currentMusicObject: MusicObject
+      currentMusicObject?: MusicObject
       userPrompt?: string
       currentTimeA?: number
       durationA?: number
@@ -157,6 +161,10 @@ export async function POST(request: NextRequest) {
     if (!trackA || !trackB) {
       return NextResponse.json({ error: "Both tracks are required" }, { status: 400 })
     }
+
+    // Mixer state is optional — every read below is already defaulted, so treat an
+    // omitted object as "everything neutral" rather than throwing.
+    const mixerState = currentMusicObject ?? ({} as MusicObject)
 
     // Determine the actual outgoing/incoming tracks based on which deck is outgoing
     const actualOutgoing = outgoingDeck === "B" ? trackB : trackA
@@ -288,14 +296,14 @@ STRUCTURE RULES:
 ═══════════════════════════════════════════════════════════════
 CURRENT MIXER STATE:
 ═══════════════════════════════════════════════════════════════
-Crossfader: ${((currentMusicObject.crossfader ?? 0.5) * 100).toFixed(0)}% (0%=Deck A, 100%=Deck B)
-Master EQ: Low ${currentMusicObject.eq?.low ?? 0}dB, Mid ${currentMusicObject.eq?.mid ?? 0}dB, High ${currentMusicObject.eq?.high ?? 0}dB
-${currentMusicObject.perDeckEq ? `Per-Deck EQ A: Low ${currentMusicObject.perDeckEq.A.low}dB, Mid ${currentMusicObject.perDeckEq.A.mid}dB, High ${currentMusicObject.perDeckEq.A.high}dB
-Per-Deck EQ B: Low ${currentMusicObject.perDeckEq.B.low}dB, Mid ${currentMusicObject.perDeckEq.B.mid}dB, High ${currentMusicObject.perDeckEq.B.high}dB` : "Per-Deck EQ: All neutral (0dB)"}
-Filter: ${currentMusicObject.filter?.type ?? "lowpass"} @ ${currentMusicObject.filter?.cutoff ?? 20000}Hz
-Reverb: ${((currentMusicObject.reverbAmount ?? 0) * 100).toFixed(0)}%, Delay: ${((currentMusicObject.delayAmount ?? 0) * 100).toFixed(0)}%
-${currentMusicObject.tracks?.A?.bassIsolation !== undefined ? `Deck A Isolation: Bass=${currentMusicObject.tracks.A.bassIsolation}, Voice=${currentMusicObject.tracks.A.voiceIsolation}, Melody=${currentMusicObject.tracks.A.melodyIsolation}` : ""}
-${currentMusicObject.tracks?.B?.bassIsolation !== undefined ? `Deck B Isolation: Bass=${currentMusicObject.tracks.B.bassIsolation}, Voice=${currentMusicObject.tracks.B.voiceIsolation}, Melody=${currentMusicObject.tracks.B.melodyIsolation}` : ""}
+Crossfader: ${((mixerState.crossfader ?? 0.5) * 100).toFixed(0)}% (0%=Deck A, 100%=Deck B)
+Master EQ: Low ${mixerState.eq?.low ?? 0}dB, Mid ${mixerState.eq?.mid ?? 0}dB, High ${mixerState.eq?.high ?? 0}dB
+${mixerState.perDeckEq ? `Per-Deck EQ A: Low ${mixerState.perDeckEq.A.low}dB, Mid ${mixerState.perDeckEq.A.mid}dB, High ${mixerState.perDeckEq.A.high}dB
+Per-Deck EQ B: Low ${mixerState.perDeckEq.B.low}dB, Mid ${mixerState.perDeckEq.B.mid}dB, High ${mixerState.perDeckEq.B.high}dB` : "Per-Deck EQ: All neutral (0dB)"}
+Filter: ${mixerState.filter?.type ?? "lowpass"} @ ${mixerState.filter?.cutoff ?? 20000}Hz
+Reverb: ${((mixerState.reverbAmount ?? 0) * 100).toFixed(0)}%, Delay: ${((mixerState.delayAmount ?? 0) * 100).toFixed(0)}%
+${mixerState.tracks?.A?.bassIsolation !== undefined ? `Deck A Isolation: Bass=${mixerState.tracks.A.bassIsolation}, Voice=${mixerState.tracks.A.voiceIsolation}, Melody=${mixerState.tracks.A.melodyIsolation}` : ""}
+${mixerState.tracks?.B?.bassIsolation !== undefined ? `Deck B Isolation: Bass=${mixerState.tracks.B.bassIsolation}, Voice=${mixerState.tracks.B.voiceIsolation}, Melody=${mixerState.tracks.B.melodyIsolation}` : ""}
 
 Your EQ/Isolation starting values should match or smoothly transition from these current values!
 

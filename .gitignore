@@ -35,3 +35,6 @@ yarn-error.log*
 .vercel
 .env*.local
 .gstack/
+
+# Local dev upload target (production writes to Vercel Blob)
+public/uploads/

@@ -81,7 +81,7 @@ export function GrokChatPanel({
   getAudioContext,
 }: GrokChatPanelProps) {
   const [textInput, setTextInput] = useState("")
-  const [selectedModel, setSelectedModel] = useState<AIModelId>("sonnet")
+  const [selectedModel, setSelectedModel] = useState<AIModelId>("grok")
   const [audioSnapshot, setAudioSnapshot] = useState<AudioSnapshot | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const analyzeIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -707,9 +707,9 @@ export function GrokChatPanel({
         {/* Model selector */}
         <div className="flex gap-1.5 mt-1.5 px-0.5">
           {([
+            { id: "grok" as const, label: "Grok" },
             { id: "sonnet" as const, label: "Sonnet" },
             { id: "haiku" as const, label: "Haiku" },
-            { id: "grok" as const, label: "Grok" },
           ]).map(({ id, label }) => (
             <button
               key={id}
